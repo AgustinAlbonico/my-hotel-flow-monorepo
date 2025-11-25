@@ -1,0 +1,61 @@
+<!doctype html>
++<html lang="es">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++  </head>
++  <body style="margin:0;padding:0;background-color:#f9fafb;font-family:Inter, Arial, sans-serif;">
++    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
++      <tr>
++        <td align="center" style="padding:24px 12px;">
++          <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:8px;overflow:hidden;">
++            <tr>
++              <td style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">
++                <img src="{{logo_url}}" alt="MyHotelFlow" width="140" style="display:block;border:0;outline:none;text-decoration:none;" />
++              </td>
++            </tr>
++
++            <tr>
++              <td style="padding:20px 24px;">
++                <h2 style="margin:0;font-size:18px;color:#111827;font-weight:700;">Reserva confirmada — {{hotel_name}}</h2>
++                <p style="margin:8px 0 16px 0;color:#6b7280;font-size:14px;">Gracias {{customer_name}}. Tu reserva ha sido confirmada. Aquí tienes los detalles:</p>
++
++                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;margin-bottom:16px;">
++                  <tr>
++                    <td style="padding:8px 0;color:#6b7280;font-size:13px;width:35%;">Reserva</td>
++                    <td style="padding:8px 0;color:#111827;font-weight:600;font-size:13px;">#{{reservation_id}}</td>
++                  </tr>
++                  <tr>
++                    <td style="padding:8px 0;color:#6b7280;font-size:13px;">Check-in</td>
++                    <td style="padding:8px 0;color:#111827;font-weight:600;font-size:13px;">{{checkin_date}}</td>
++                  </tr>
++                  <tr>
++                    <td style="padding:8px 0;color:#6b7280;font-size:13px;">Check-out</td>
++                    <td style="padding:8px 0;color:#111827;font-weight:600;font-size:13px;">{{checkout_date}}</td>
++                  </tr>
++                  <tr>
++                    <td style="padding:8px 0;color:#6b7280;font-size:13px;">Habitación</td>
++                    <td style="padding:8px 0;color:#111827;font-weight:600;font-size:13px;">{{room_type}} · {{guests}} huésped(es)</td>
++                  </tr>
++                  <tr>
++                    <td style="padding:8px 0;color:#6b7280;font-size:13px;">Total</td>
++                    <td style="padding:8px 0;color:#111827;font-weight:700;font-size:16px;">{{currency}} {{total_price}}</td>
++                  </tr>
++                </table>
++
++                <p style="margin:12px 0 12px 0;"><a href="{{booking_link}}" style="display:inline-block;padding:10px 16px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Ver mi reserva</a></p>
++
++                <p style="margin:0;color:#6b7280;font-size:13px;">Si necesitas cambiar algo, entra a tu perfil o contáctanos en <a href="mailto:{{support_email}}" style="color:#2563eb;text-decoration:none;">{{support_email}}</a>.</p>
++              </td>
++            </tr>
++
++            <tr>
++              <td style="padding:16px 24px;background:#f9fafb;color:#9ca3af;font-size:12px;text-align:center;">© {{year}} MyHotelFlow</td>
++            </tr>
++          </table>
++        </td>
++      </tr>
++    </table>
++  </body>
++</html>
++
