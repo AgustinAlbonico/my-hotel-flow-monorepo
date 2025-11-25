@@ -6,15 +6,16 @@
   ],
   "scripts": {
     "bootstrap": "npm install",
-    "build": "npm run -w @myhotelflow/backend build && npm run -w @myhotelflow/web build",
+    "build": "turbo run build",
     "dev:backend": "npm run -w @myhotelflow/backend dev",
     "dev:web": "npm run -w @myhotelflow/web dev",
-    "dev": "concurrently -k -n backend,web -c blue,magenta \"npm run dev:backend\" \"npm run dev:web\"",
+    "dev": "turbo run dev --parallel",
     "start:backend": "npm run -w @myhotelflow/backend start",
     "start:web": "npm run -w @myhotelflow/web preview",
-    "start": "concurrently -k -n backend,web -c green,cyan \"npm run start:backend\" \"npm run start:web\""
+    "start": "turbo run start --parallel"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "turbo": "^2.6.1"
   }
 }
