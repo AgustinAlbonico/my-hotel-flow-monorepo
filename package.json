@@ -1,0 +1,15 @@
+{
+  "name": "my-hotel-flow-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "bootstrap": "npm install",
+    "build": "npm run -w @myhotelflow/backend build && npm run -w @myhotelflow/web build",
+    "dev:backend": "npm run -w @myhotelflow/backend dev",
+    "dev:web": "npm run -w @myhotelflow/web dev",
+    "start:backend": "npm run -w @myhotelflow/backend start",
+    "start:web": "npm run -w @myhotelflow/web dev"
+  }
+}
