@@ -45,3 +45,6 @@ Thumbs.db
 
 # Claude
 .claude/
+ 
+# Backups of former subrepos' git dirs (created during monorepo conversion)
+.git-submodule-backups/
