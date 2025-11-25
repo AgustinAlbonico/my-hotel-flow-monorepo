@@ -1,0 +1,58 @@
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: myhotelflow-postgres
+    environment:
+      POSTGRES_DB: myhotelflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - myhotelflow-network
+
+  # Redis (Cache y Blacklist)
+  redis:
+    image: redis:7-alpine
+    container_name: myhotelflow-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - myhotelflow-network
+
+  # MailHog - local SMTP server + web UI (para pruebas de email)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: myhotelflow-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    restart: unless-stopped
+    networks:
+      - myhotelflow-network
+
+  # Adminer - interfaz web para gestionar la base de datos
+  adminer:
+    image: adminer:latest
+    container_name: myhotelflow-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Adminer UI
+    depends_on:
+      - postgres
+    networks:
+      - myhotelflow-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  myhotelflow-network:
+    driver: bridge
