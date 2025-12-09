@@ -54,8 +54,9 @@ export class TypeOrmRoomRepository implements IRoomRepository {
       .createQueryBuilder('room')
       .leftJoinAndSelect('room.roomType', 'roomType')
       .where('roomType.code = :code', { code: roomTypeCode })
-      .andWhere('room.estado = :estado', { estado: 'AVAILABLE' })
       .andWhere('room.isActive = :isActive', { isActive: true });
+    // NO filtramos por room.estado porque una habitación puede estar OCCUPIED ahora
+    // pero disponible para reservas futuras
 
     if (capacity) {
       query.andWhere('roomType.capacidadMaxima >= :capacity', { capacity });
@@ -112,12 +113,14 @@ export class TypeOrmRoomRepository implements IRoomRepository {
     roomId: number,
     dateRange: DateRange,
   ): Promise<boolean> {
+    // Verificar que la habitación existe y está activa
+    // NO verificamos room.estado porque puede estar OCCUPIED actualmente
+    // pero disponible para reservas futuras
     const count = await this.repository
       .createQueryBuilder('room')
       .leftJoin('reservations', 'res', 'res.roomId = room.id')
       .where('room.id = :roomId', { roomId })
       .andWhere('room.isActive = :isActive', { isActive: true })
-      .andWhere('room.estado = :estado', { estado: 'AVAILABLE' })
       .andWhere((qb) => {
         const subQuery = qb
           .subQuery()

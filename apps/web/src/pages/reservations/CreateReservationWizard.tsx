@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reservationsApi, ClientFound, AvailableRoom } from '../../api/reservations.api';
 import { searchClients, ClientListItem } from '../../api/clients.api';
 import { useRoomTypes } from '../../hooks/useRoomTypes';
@@ -24,6 +24,7 @@ interface ReservationFormData {
 
 export default function CreateReservationWizard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [formData, setFormData] = useState<ReservationFormData>({
     dni: '',
@@ -114,7 +115,8 @@ export default function CreateReservationWizard() {
       }),
     onSuccess: () => {
       setCreateError('');
-      // Removed automatic redirect - user can now choose when to navigate
+      // Invalidate reservations cache to ensure fresh data when navigating to list
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
     },
     onError: (error: unknown) => {
       if (error instanceof Error) {
@@ -883,7 +885,7 @@ export default function CreateReservationWizard() {
               Imprimir Comprobante
             </button>
             <button
-              onClick={() => navigate('/reservations')}
+              onClick={() => navigate('/reservations?tab=list')}
               className="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 font-medium"
             >
               Ver Todas las Reservas

@@ -13,13 +13,25 @@ import { RevokedTokenEntity } from '../persistence/typeorm/entities/revoked-toke
 @Module({
   imports: [
     ConfigModule,
-    JwtModule.register({
-      secret:
-        process.env.JWT_SECRET ||
-        'dev-secret-key-please-change-in-production-min-32-chars-long',
-      signOptions: {
-        expiresIn: '15m',
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get<string>('jwt.secret');
+        const expiresIn =
+          configService.get<string>('jwt.accessExpiration') || '15m';
+
+        if (!secret) {
+          throw new Error('JWT Secret is not configured in SecurityModule');
+        }
+
+        return {
+          secret,
+          signOptions: {
+            expiresIn: expiresIn as `${number}${'s' | 'm' | 'h' | 'd'}` | number,
+          },
+        };
       },
+      inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([RevokedTokenEntity]),
   ],

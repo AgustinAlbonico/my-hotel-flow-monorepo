@@ -42,6 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return {
       id: payload.sub,
       email: payload.email,
+      username: payload.username, // Necesario para auditoría
       sub: payload.sub, // Para compatibilidad
       userType: payload.userType || 'user', // Default a 'user' para compatibilidad
     };
@@ -53,6 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
  */
 interface JwtPayload {
   sub: number; // User ID
+  username: string;
   email: string;
   type: 'access' | 'refresh';
   userType?: 'user' | 'client';
@@ -66,6 +68,7 @@ interface JwtPayload {
  */
 export interface JwtUser {
   id: number;
+  username: string;
   email: string;
   sub: number; // Para compatibilidad con código existente
   userType: 'user' | 'client';

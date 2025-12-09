@@ -31,16 +31,29 @@ export interface ReservationStatusData {
 }
 
 export interface DashboardStatsResponse {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
   statsCards: StatsCard[];
   monthlyReservations: MonthlyData[];
   roomOccupancy: RoomOccupancyData[];
   reservationStatus: ReservationStatusData[];
 }
 
+export interface DashboardStatsFilters {
+  startDate?: string;
+  endDate?: string;
+}
+
 /**
  * Obtener estadísticas del dashboard
  */
-export const getDashboardStats = async (): Promise<DashboardStatsResponse> => {
-  const response = await api.get<DashboardStatsResponse>('/dashboard/stats');
+export const getDashboardStats = async (
+  filters: DashboardStatsFilters = {},
+): Promise<DashboardStatsResponse> => {
+  const response = await api.get<DashboardStatsResponse>('/dashboard/stats', {
+    params: filters,
+  });
   return response.data;
 };

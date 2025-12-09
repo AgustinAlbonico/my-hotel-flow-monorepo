@@ -113,6 +113,25 @@ export interface UserActivityFilters {
   limit?: number;
 }
 
+export interface AuditSummaryFilters {
+  startDate?: string;
+  endDate?: string;
+}
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface UserActivityFilters {
+  userId?: number;
+  sessionId?: string;
+  activityType?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
 // ==================== API Methods ====================
 
 /**
@@ -162,12 +181,16 @@ export const getUserActivity = async (
 };
 
 /**
- * Obtener resumen de auditoría (últimos 7 días)
+ * Obtener resumen de auditoría (por defecto últimos 7 días, personalizable)
  */
-export const getAuditSummary = async (): Promise<{
+export const getAuditSummary = async (
+  filters: AuditSummaryFilters = {},
+): Promise<{
   success: boolean;
   data: AuditSummary;
 }> => {
-  const response = await api.get('/audit/summary');
+  const response = await api.get('/audit/summary', {
+    params: filters,
+  });
   return response.data;
 };

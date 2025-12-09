@@ -11,14 +11,42 @@ import {
   ReservationAuditFilters,
   UserSessionFilters,
   UserActivityFilters,
+  AuditSummaryFilters,
 } from '@/api/audit.api';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 type TabType = 'summary' | 'reservations' | 'sessions' | 'activity';
 
+// Funciones helper para rangos de fechas predefinidos
+const getDateRangePreset = (preset: string): { startDate: string; endDate: string } => {
+  const today = new Date();
+  const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
+  
+  switch (preset) {
+    case '7days':
+      return { startDate: formatDate(subDays(today, 7)), endDate: formatDate(today) };
+    case '30days':
+      return { startDate: formatDate(subDays(today, 30)), endDate: formatDate(today) };
+    case '90days':
+      return { startDate: formatDate(subDays(today, 90)), endDate: formatDate(today) };
+    case 'thisMonth': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { startDate: formatDate(firstDay), endDate: formatDate(today) };
+    }
+    case 'lastMonth': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { startDate: formatDate(firstDay), endDate: formatDate(lastDay) };
+    }
+    default:
+      return { startDate: formatDate(subDays(today, 7)), endDate: formatDate(today) };
+  }
+};
+
 export default function AuditReportsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('summary');
+  const [summaryFilters, setSummaryFilters] = useState<AuditSummaryFilters>({});
   const [reservationFilters, setReservationFilters] = useState<ReservationAuditFilters>({
     page: 1,
     limit: 50,
@@ -34,8 +62,8 @@ export default function AuditReportsPage() {
 
   // Queries
   const summaryQuery = useQuery({
-    queryKey: ['audit-summary'],
-    queryFn: getAuditSummary,
+    queryKey: ['audit-summary', summaryFilters],
+    queryFn: () => getAuditSummary(summaryFilters),
     enabled: activeTab === 'summary',
   });
 
@@ -99,7 +127,12 @@ export default function AuditReportsPage() {
       {/* Tab Content */}
       <div className="bg-white rounded-lg shadow">
         {activeTab === 'summary' && (
-          <SummaryTab query={summaryQuery} />
+          <SummaryTab 
+            query={summaryQuery} 
+            filters={summaryFilters}
+            setFilters={setSummaryFilters}
+            getDateRangePreset={getDateRangePreset}
+          />
         )}
 
         {activeTab === 'reservations' && (
@@ -131,7 +164,13 @@ export default function AuditReportsPage() {
 }
 
 // ==================== Summary Tab ====================
-function SummaryTab({ query }: any) {
+function SummaryTab({ query, filters, setFilters, getDateRangePreset }: any) {
+  const handlePresetChange = (preset: string) => {
+    if (preset === 'custom') return;
+    const { startDate, endDate } = getDateRangePreset(preset);
+    setFilters({ startDate, endDate });
+  };
+
   if (query.isLoading) {
     return <div className="p-8 text-center">Cargando resumen...</div>;
   }
@@ -150,9 +189,57 @@ function SummaryTab({ query }: any) {
 
   return (
     <div className="p-8">
-      <h2 className="text-xl font-semibold mb-6">
-        Resumen de los Últimos 7 Días
-      </h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <h2 className="text-xl font-semibold">
+          Resumen de Auditoría
+        </h2>
+        
+        {/* Filtros de fecha */}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="border rounded px-3 py-2 text-sm"
+            onChange={(e) => handlePresetChange(e.target.value)}
+            defaultValue="7days"
+          >
+            <option value="7days">Últimos 7 días</option>
+            <option value="30days">Últimos 30 días</option>
+            <option value="90days">Últimos 90 días</option>
+            <option value="thisMonth">Este mes</option>
+            <option value="lastMonth">Mes anterior</option>
+            <option value="custom">Personalizado</option>
+          </select>
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              className="border rounded px-3 py-2 text-sm"
+              value={filters.startDate || ''}
+              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+            />
+            <span className="text-gray-500">a</span>
+            <input
+              type="date"
+              className="border rounded px-3 py-2 text-sm"
+              value={filters.endDate || ''}
+              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Indicador del período actual */}
+      {data?.period && (
+        <div className="mb-6 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded">
+          Mostrando datos desde{' '}
+          <span className="font-medium">
+            {format(new Date(data.period.startDate), 'dd/MM/yyyy', { locale: es })}
+          </span>{' '}
+          hasta{' '}
+          <span className="font-medium">
+            {format(new Date(data.period.endDate), 'dd/MM/yyyy', { locale: es })}
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Cambios en Reservas */}
@@ -387,7 +474,7 @@ function SessionsTab({ query, filters, setFilters }: any) {
       <h2 className="text-xl font-semibold mb-6">Sesiones de Usuario</h2>
 
       {/* Filtros */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <input
           type="number"
           placeholder="ID Usuario"
@@ -411,6 +498,20 @@ function SessionsTab({ query, filters, setFilters }: any) {
           <option value="true">Activas</option>
           <option value="false">Cerradas</option>
         </select>
+        <input
+          type="date"
+          placeholder="Fecha Inicio"
+          className="border rounded px-3 py-2"
+          value={filters.startDate || ''}
+          onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+        />
+        <input
+          type="date"
+          placeholder="Fecha Fin"
+          className="border rounded px-3 py-2"
+          value={filters.endDate || ''}
+          onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+        />
       </div>
 
       {/* Lista de sesiones */}
@@ -450,12 +551,40 @@ function SessionsTab({ query, filters, setFilters }: any) {
           </div>
         ))}
       </div>
+
+      {/* Paginación */}
+      {data?.pagination && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            Mostrando {data.data.length} de {data.pagination.total} sesiones
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={filters.page <= 1}
+              onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <span className="px-4 py-2">
+              Página {filters.page} de {data.pagination.totalPages}
+            </span>
+            <button
+              disabled={filters.page >= data.pagination.totalPages}
+              onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ==================== Activity Tab ====================
-function ActivityTab({ query }: any) {
+function ActivityTab({ query, filters, setFilters }: any) {
   if (query.isLoading) {
     return <div className="p-8 text-center">Cargando actividad...</div>;
   }
@@ -475,6 +604,48 @@ function ActivityTab({ query }: any) {
   return (
     <div className="p-8">
       <h2 className="text-xl font-semibold mb-6">Actividad de Usuarios</h2>
+
+      {/* Filtros */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <input
+          type="number"
+          placeholder="ID Usuario"
+          className="border rounded px-3 py-2"
+          value={filters.userId || ''}
+          onChange={(e) =>
+            setFilters({ ...filters, userId: e.target.value || undefined })
+          }
+        />
+        <select
+          className="border rounded px-3 py-2"
+          value={filters.activityType || ''}
+          onChange={(e) =>
+            setFilters({ ...filters, activityType: e.target.value || undefined })
+          }
+        >
+          <option value="">Todos los tipos</option>
+          <option value="LOGIN">Login</option>
+          <option value="LOGOUT">Logout</option>
+          <option value="CREATE">Creación</option>
+          <option value="UPDATE">Actualización</option>
+          <option value="DELETE">Eliminación</option>
+          <option value="VIEW">Visualización</option>
+        </select>
+        <input
+          type="date"
+          placeholder="Fecha Inicio"
+          className="border rounded px-3 py-2"
+          value={filters.startDate || ''}
+          onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+        />
+        <input
+          type="date"
+          placeholder="Fecha Fin"
+          className="border rounded px-3 py-2"
+          value={filters.endDate || ''}
+          onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+        />
+      </div>
 
       <div className="space-y-2">
         {data?.data.map((activity: any) => (
@@ -498,6 +669,34 @@ function ActivityTab({ query }: any) {
           </div>
         ))}
       </div>
+
+      {/* Paginación */}
+      {data?.pagination && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            Mostrando {data.data.length} de {data.pagination.total} actividades
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={filters.page <= 1}
+              onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <span className="px-4 py-2">
+              Página {filters.page} de {data.pagination.totalPages}
+            </span>
+            <button
+              disabled={filters.page >= data.pagination.totalPages}
+              onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+              className="px-4 py-2 border rounded disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

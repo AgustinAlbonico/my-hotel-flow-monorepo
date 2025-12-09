@@ -139,3 +139,15 @@ export class GetUserActivityDto {
   @Max(200)
   limit?: number = 100;
 }
+
+export class GetAuditSummaryDto {
+  @ApiPropertyOptional({ description: 'Fecha desde (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha hasta (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}

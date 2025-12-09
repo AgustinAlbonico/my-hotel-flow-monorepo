@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Get, UseGuards, Logger, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ActionsGuard } from '../guards/actions.guard';
 import { Actions } from '../decorators/actions.decorator';
+import { GetDashboardStatsDto } from '../dtos/dashboard/get-dashboard-stats.dto';
 import { ReservationOrmEntity } from '../../infrastructure/persistence/typeorm/entities/reservation.orm-entity';
 import { RoomOrmEntity } from '../../infrastructure/persistence/typeorm/entities/room.orm-entity';
 import { PaymentOrmEntity } from '../../infrastructure/persistence/typeorm/entities/payment.orm-entity';
@@ -42,6 +43,10 @@ interface StatsCard {
 }
 
 interface DashboardStatsResponse {
+  period: {
+    startDate: Date;
+    endDate: Date;
+  };
   statsCards: StatsCard[];
   monthlyReservations: MonthlyData[];
   roomOccupancy: RoomOccupancyData[];
@@ -70,13 +75,26 @@ export class DashboardController {
   @Actions('reservas.listar')
   @ApiOperation({ summary: 'Obtener estadísticas del dashboard' })
   @ApiResponse({ status: 200, description: 'Estadísticas obtenidas exitosamente' })
-  async getDashboardStats(): Promise<DashboardStatsResponse> {
+  async getDashboardStats(@Query() filters: GetDashboardStatsDto): Promise<DashboardStatsResponse> {
     try {
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      
+      // Usar fechas del filtro o por defecto el mes actual
+      const startOfMonth = filters.startDate 
+        ? new Date(filters.startDate) 
+        : new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = filters.endDate 
+        ? new Date(filters.endDate + 'T23:59:59') 
+        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      // Para comparación calculamos el período anterior de la misma duración
+      const periodDays = Math.ceil((endOfMonth.getTime() - startOfMonth.getTime()) / (1000 * 60 * 60 * 24));
+      const lastMonthEnd = new Date(startOfMonth);
+      lastMonthEnd.setDate(lastMonthEnd.getDate() - 1);
+      lastMonthEnd.setHours(23, 59, 59);
+      const lastMonthStart = new Date(lastMonthEnd);
+      lastMonthStart.setDate(lastMonthStart.getDate() - periodDays + 1);
+      lastMonthStart.setHours(0, 0, 0);
 
     // 1. Stats Cards
     // Ocupación actual
@@ -249,6 +267,10 @@ export class DashboardController {
     ];
 
     return {
+      period: {
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+      },
       statsCards,
       monthlyReservations,
       roomOccupancy,

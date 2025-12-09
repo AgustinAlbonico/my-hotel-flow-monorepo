@@ -68,6 +68,7 @@ export const CheckOutTab: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [generatedInvoice, setGeneratedInvoice] = useState<Invoice | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
   const handleConfirmCheckOut = async ({
     roomCondition,
@@ -115,6 +116,7 @@ export const CheckOutTab: React.FC = () => {
     reference?: string;
   }): Promise<void> => {
     if (!generatedInvoice || !selectedReservation) return;
+    setIsPaymentLoading(true);
     try {
       await registerPayment({
         invoiceId: generatedInvoice.id,
@@ -141,6 +143,8 @@ export const CheckOutTab: React.FC = () => {
         title: 'Error al registrar pago',
         message: (err as ApiErrorLike).response?.data?.message || 'No se pudo registrar el pago',
       });
+    } finally {
+      setIsPaymentLoading(false);
     }
   };
 
@@ -434,6 +438,7 @@ export const CheckOutTab: React.FC = () => {
               onSubmit={handleRegisterPayment}
               onMethodChange={setSelectedPaymentMethod}
               initialMethod={selectedPaymentMethod ?? PaymentMethod.CASH}
+              isLoading={isPaymentLoading}
             />
           </div>
         )}

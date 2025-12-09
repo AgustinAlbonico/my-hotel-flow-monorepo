@@ -3,7 +3,7 @@
  * Fase 3 - UI/UX: Visualización de datos con Recharts
  * Actualizado para usar datos reales del backend
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart,
@@ -20,8 +20,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Users, Bed, DollarSign, Loader2 } from 'lucide-react';
-import { getDashboardStats } from '@/api/dashboard.api';
+import { TrendingUp, Users, Bed, DollarSign, Loader2, Calendar } from 'lucide-react';
+import { getDashboardStats, DashboardStatsFilters } from '@/api/dashboard.api';
+import { format, subDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const iconMap = {
   primary: Bed,
@@ -30,12 +32,55 @@ const iconMap = {
   warning: DollarSign,
 };
 
+// Funciones helper para rangos de fechas predefinidos
+const getDateRangePreset = (preset: string): { startDate: string; endDate: string } => {
+  const today = new Date();
+  const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
+  
+  switch (preset) {
+    case 'thisMonth': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { startDate: formatDate(firstDay), endDate: formatDate(today) };
+    }
+    case 'lastMonth': {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { startDate: formatDate(firstDay), endDate: formatDate(lastDay) };
+    }
+    case '7days':
+      return { startDate: formatDate(subDays(today, 7)), endDate: formatDate(today) };
+    case '30days':
+      return { startDate: formatDate(subDays(today, 30)), endDate: formatDate(today) };
+    case '90days':
+      return { startDate: formatDate(subDays(today, 90)), endDate: formatDate(today) };
+    case 'thisYear': {
+      const firstDay = new Date(today.getFullYear(), 0, 1);
+      return { startDate: formatDate(firstDay), endDate: formatDate(today) };
+    }
+    default:
+      return { startDate: '', endDate: '' }; // Default: mes actual (manejado por backend)
+  }
+};
+
 export const DashboardStats: React.FC = () => {
+  const [filters, setFilters] = useState<DashboardStatsFilters>({});
+  const [selectedPreset, setSelectedPreset] = useState<string>('default');
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: getDashboardStats,
+    queryKey: ['dashboard-stats', filters],
+    queryFn: () => getDashboardStats(filters),
     refetchInterval: 60000, // Refrescar cada minuto
   });
+
+  const handlePresetChange = (preset: string) => {
+    setSelectedPreset(preset);
+    if (preset === 'default') {
+      setFilters({});
+    } else if (preset !== 'custom') {
+      const { startDate, endDate } = getDateRangePreset(preset);
+      setFilters({ startDate, endDate });
+    }
+  };
 
   const getColorClasses = (color: string) => {
     const colors: Record<string, { bg: string; icon: string }> = {
@@ -83,6 +128,64 @@ export const DashboardStats: React.FC = () => {
 
   return (
     <div className="space-y-6 mb-8">
+      {/* Filtros de fecha */}
+      <div className="card p-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-gray-500" size={20} />
+            <span className="font-medium text-gray-700 dark:text-gray-300">Período de análisis:</span>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              className="border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:border-gray-600"
+              value={selectedPreset}
+              onChange={(e) => handlePresetChange(e.target.value)}
+            >
+              <option value="default">Mes actual</option>
+              <option value="lastMonth">Mes anterior</option>
+              <option value="7days">Últimos 7 días</option>
+              <option value="30days">Últimos 30 días</option>
+              <option value="90days">Últimos 90 días</option>
+              <option value="thisYear">Este año</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            
+            {selectedPreset === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className="border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:border-gray-600"
+                  value={filters.startDate || ''}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                />
+                <span className="text-gray-500">a</span>
+                <input
+                  type="date"
+                  className="border rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 dark:border-gray-600"
+                  value={filters.endDate || ''}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Indicador del período actual */}
+        {data.period && (
+          <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            Mostrando datos desde{' '}
+            <span className="font-medium">
+              {format(new Date(data.period.startDate), 'dd/MM/yyyy', { locale: es })}
+            </span>{' '}
+            hasta{' '}
+            <span className="font-medium">
+              {format(new Date(data.period.endDate), 'dd/MM/yyyy', { locale: es })}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => {

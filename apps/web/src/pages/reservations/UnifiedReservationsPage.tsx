@@ -67,6 +67,14 @@ export const UnifiedReservationsPage: React.FC = () => {
   const initialTab = (searchParams.get('tab') as TabType) || 'list';
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
+  // Sync activeTab with URL changes (e.g., when navigating from CreateReservationWizard)
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab') as TabType;
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
   // Update URL when tab changes
   useEffect(() => {
     setSearchParams({ tab: activeTab }, { replace: true });

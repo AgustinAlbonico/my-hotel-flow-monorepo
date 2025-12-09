@@ -1,16 +1,20 @@
 /**
  * Reservations List Tab
- * Tab para listar, buscar, modificar y cancelar reservas confirmadas
+ * Tab para listar, buscar, modificar y cancelar reservas de todos los estados
  * Adaptado de ReservationsManagePage.tsx
  */
-import React, { useMemo, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   BedDouble,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Edit3,
   Eye,
+  Filter,
   Loader2,
   MoreHorizontal,
   Search,
@@ -43,7 +47,31 @@ interface ReservationListItem {
   } | null;
 }
 
+interface PaginatedResponse {
+  data: ReservationListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 type ModalType = 'view' | 'modify' | 'cancel' | null;
+type StatusFilter = 'ALL' | 'CONFIRMED' | 'IN_PROGRESS' | 'CANCELLED' | 'COMPLETED';
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'ALL', label: 'Todos los estados' },
+  { value: 'CONFIRMED', label: 'Confirmadas' },
+  { value: 'IN_PROGRESS', label: 'En progreso' },
+  { value: 'COMPLETED', label: 'Completadas' },
+  { value: 'CANCELLED', label: 'Canceladas' },
+];
+
+const STATUS_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
+  CONFIRMED: { label: 'Confirmada', bgColor: 'bg-blue-100', textColor: 'text-blue-800' },
+  IN_PROGRESS: { label: 'En progreso', bgColor: 'bg-green-100', textColor: 'text-green-800' },
+  COMPLETED: { label: 'Completada', bgColor: 'bg-gray-100', textColor: 'text-gray-800' },
+  CANCELLED: { label: 'Cancelada', bgColor: 'bg-red-100', textColor: 'text-red-800' },
+};
 
 const toLocalISOString = (dateStr: string): string => {
   if (!dateStr) return '';
@@ -74,28 +102,80 @@ export const ReservationsListTab: React.FC = () => {
   const { showToast } = useToast();
 
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [checkInFrom, setCheckInFrom] = useState('');
+  const [checkInTo, setCheckInTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [selectedReservation, setSelectedReservation] = useState<ReservationListItem | null>(null);
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId !== null) {
+        const button = buttonRefs.current.get(openDropdownId);
+        const dropdown = dropdownRef.current;
+        const target = event.target as Node;
+        
+        // Don't close if clicking on the button or inside the dropdown
+        if (button?.contains(target) || dropdown?.contains(target)) {
+          return;
+        }
+        
+        setOpenDropdownId(null);
+        setDropdownPosition(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openDropdownId]);
 
   const [newCheckIn, setNewCheckIn] = useState('');
   const [newCheckOut, setNewCheckOut] = useState('');
   const [cancelReason, setCancelReason] = useState('');
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['reservations', 'manage', { search }],
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, checkInFrom, checkInTo]);
+
+  const { data: paginatedData, isLoading, isError, error } = useQuery({
+    queryKey: ['reservations', 'manage', { search, status: statusFilter, checkInFrom, checkInTo, page: currentPage, limit: ITEMS_PER_PAGE }],
     queryFn: async () => {
       const response = await api.get('/reservations', {
         params: {
-          status: 'CONFIRMED',
+          status: statusFilter === 'ALL' ? undefined : statusFilter,
           search: search || undefined,
-          page: 1,
-          limit: 50,
+          checkInFrom: checkInFrom || undefined,
+          checkInTo: checkInTo || undefined,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
         },
       });
-      return (response.data?.data || response.data || []) as ReservationListItem[];
+      // Handle both paginated and non-paginated responses
+      if (response.data?.data && typeof response.data?.total === 'number') {
+        return response.data as PaginatedResponse;
+      }
+      // Fallback for non-paginated response
+      const items = response.data?.data || response.data || [];
+      return {
+        data: items as ReservationListItem[],
+        total: items.length,
+        page: 1,
+        limit: ITEMS_PER_PAGE,
+        totalPages: 1,
+      } as PaginatedResponse;
     },
   });
+
+  const reservations = paginatedData?.data ?? [];
+  const totalPages = paginatedData?.totalPages ?? 1;
+  const totalItems = paginatedData?.total ?? 0;
 
   const updateMutation = useMutation({
     mutationFn: async (payload: { id: number; checkIn?: string; checkOut?: string }) => {
@@ -164,14 +244,7 @@ export const ReservationsListTab: React.FC = () => {
     },
   });
 
-  const sortedReservations = useMemo(() => {
-    const list = data ?? [];
-    return [...list].sort((a, b) => {
-      const dateA = a.checkIn ? new Date(a.checkIn).getTime() : Infinity;
-      const dateB = b.checkIn ? new Date(b.checkIn).getTime() : Infinity;
-      return dateA - dateB;
-    });
-  }, [data]);
+  const sortedReservations = reservations;
 
   const handleOpenModal = (reservation: ReservationListItem, type: ModalType) => {
     setSelectedReservation(reservation);
@@ -240,43 +313,112 @@ export const ReservationsListTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Search Bar */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por código, DNI o nombre de cliente..."
-            className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+      {/* Search Bar and Filters */}
+      <div className="space-y-4">
+        {/* First row: Search and Status filter */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1 relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por código, DNI o nombre de cliente..."
+              className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className="w-full sm:w-52 pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white appearance-none cursor-pointer"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Second row: Date filters */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Check-in desde:</label>
+            <div className="relative flex-1 sm:w-40">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="date"
+                value={checkInFrom}
+                onChange={(e) => setCheckInFrom(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Check-in hasta:</label>
+            <div className="relative flex-1 sm:w-40">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="date"
+                value={checkInTo}
+                min={checkInFrom || undefined}
+                onChange={(e) => setCheckInTo(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+          {(checkInFrom || checkInTo) && (
+            <button
+              onClick={() => {
+                setCheckInFrom('');
+                setCheckInTo('');
+              }}
+              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={16} />
+              Limpiar fechas
+            </button>
+          )}
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
         {sortedReservations.length === 0 ? (
           <div className="p-16 text-center">
             <Calendar className="mx-auto text-gray-300 mb-4" size={48} />
-            <p className="text-gray-600 font-medium mb-1">No hay reservas confirmadas</p>
+            <p className="text-gray-600 font-medium mb-1">No hay reservas</p>
             <p className="text-sm text-gray-500">
-              {search ? 'No se encontraron reservas que coincidan con tu búsqueda.' : 'Aún no hay reservas confirmadas en el sistema.'}
+              {search || statusFilter !== 'ALL' || checkInFrom || checkInTo ? 'No se encontraron reservas que coincidan con los filtros aplicados.' : 'Aún no hay reservas en el sistema.'}
             </p>
           </div>
         ) : (
           <>
             <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
               <p className="text-sm text-gray-600">
-                <span className="font-semibold text-gray-900">{sortedReservations.length}</span> reserva{sortedReservations.length !== 1 ? 's' : ''} confirmada{sortedReservations.length !== 1 ? 's' : ''}
+                <span className="font-semibold text-gray-900">{totalItems}</span> reserva{totalItems !== 1 ? 's' : ''} encontrada{totalItems !== 1 ? 's' : ''}
+                {statusFilter !== 'ALL' && (
+                  <span className="ml-1">
+                    ({STATUS_OPTIONS.find(o => o.value === statusFilter)?.label.toLowerCase()})
+                  </span>
+                )}
+                {(checkInFrom || checkInTo) && (
+                  <span className="ml-1">
+                    • Check-in: {checkInFrom && formatDate(checkInFrom)}{checkInFrom && checkInTo && ' - '}{checkInTo && formatDate(checkInTo)}
+                  </span>
+                )}
               </p>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full table-surface">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-800">
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Código</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Estado</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Cliente</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Habitación</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Check-In</th>
@@ -286,11 +428,18 @@ export const ReservationsListTab: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {sortedReservations.map((reservation) => (
+                  {sortedReservations.map((reservation) => {
+                    const statusConfig = STATUS_CONFIG[reservation.status || 'CONFIRMED'] || STATUS_CONFIG.CONFIRMED;
+                    return (
                     <tr key={reservation.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                       <td className="px-6 py-4">
                         <span className="font-mono text-sm font-semibold text-primary-600">
                           {reservation.code || `RES-${reservation.id}`}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                          {statusConfig.label}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -349,50 +498,140 @@ export const ReservationsListTab: React.FC = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="relative inline-block">
                           <button
+                            ref={(el) => {
+                              if (el) buttonRefs.current.set(reservation.id, el);
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenDropdownId(openDropdownId === reservation.id ? null : reservation.id);
+                              if (openDropdownId === reservation.id) {
+                                setOpenDropdownId(null);
+                                setDropdownPosition(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setDropdownPosition({
+                                  top: rect.bottom + 4,
+                                  left: rect.right - 192, // 192px = w-48
+                                });
+                                setOpenDropdownId(reservation.id);
+                              }
                             }}
                             className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                           >
                             <MoreHorizontal size={20} />
                           </button>
-
-                          {openDropdownId === reservation.id && (
-                            <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                              <button
-                                onClick={() => handleOpenModal(reservation, 'view')}
-                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <Eye size={16} />
-                                Ver detalles
-                              </button>
-                              <button
-                                onClick={() => handleOpenModal(reservation, 'modify')}
-                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                <Edit3 size={16} />
-                                Modificar fechas
-                              </button>
-                              <button
-                                onClick={() => handleOpenModal(reservation, 'cancel')}
-                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              >
-                                <XCircle size={16} />
-                                Cancelar reserva
-                              </button>
-                            </div>
-                          )}
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <p className="text-sm text-gray-600">
+                  Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} de {totalItems}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} className="mr-1" />
+                    Anterior
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                            currentPage === pageNum
+                              ? 'bg-primary-600 text-white'
+                              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Siguiente
+                    <ChevronRight size={16} className="ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* Dropdown Portal */}
+      {openDropdownId !== null && dropdownPosition && (() => {
+        const reservation = sortedReservations.find(r => r.id === openDropdownId);
+        const canModify = reservation?.status === 'CONFIRMED';
+        const canCancel = reservation?.status === 'CONFIRMED';
+        
+        return createPortal(
+        <div 
+          ref={dropdownRef}
+          className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[9999]"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+        >
+          <button
+            onClick={() => {
+              if (reservation) handleOpenModal(reservation, 'view');
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+          >
+            <Eye size={16} />
+            Ver detalles
+          </button>
+          {canModify && (
+            <button
+              onClick={() => {
+                if (reservation) handleOpenModal(reservation, 'modify');
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Edit3 size={16} />
+              Modificar fechas
+            </button>
+          )}
+          {canCancel && (
+            <button
+              onClick={() => {
+                if (reservation) handleOpenModal(reservation, 'cancel');
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            >
+              <XCircle size={16} />
+              Cancelar reserva
+            </button>
+          )}
+        </div>,
+        document.body
+      );
+      })()}
 
       {/* View Modal */}
       {activeModal === 'view' && selectedReservation && (

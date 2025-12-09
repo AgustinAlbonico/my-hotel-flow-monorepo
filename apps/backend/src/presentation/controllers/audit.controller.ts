@@ -8,6 +8,7 @@ import {
   GetReservationAuditDto,
   GetUserSessionsDto,
   GetUserActivityDto,
+  GetAuditSummaryDto,
 } from '../dtos/audit/get-audit-reports.dto';
 import {
   ReservationAuditResponseDto,
@@ -218,24 +219,33 @@ export class AuditController {
     status: 200,
     description: 'Resumen consolidado de auditoría',
   })
-  async getAuditSummary() {
-    // Últimos 7 días
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 7);
+  async getAuditSummary(@Query() filters: GetAuditSummaryDto) {
+    // Usar fechas del filtro o por defecto últimos 7 días
+    const endDate = filters.endDate ? new Date(filters.endDate) : new Date();
+    const startDate = filters.startDate
+      ? new Date(filters.startDate)
+      : (() => {
+          const date = new Date();
+          date.setDate(date.getDate() - 7);
+          return date;
+        })();
 
     const [reservationChanges, sessions, activity] = await Promise.all([
       this.auditService.getReservationChangesReport({
         startDate,
+        endDate,
         page: 1,
         limit: 100,
       }),
       this.auditService.getUserSessionsReport({
         startDate,
+        endDate,
         page: 1,
         limit: 100,
       }),
       this.auditService.getUserActivityReport({
         startDate,
+        endDate,
         page: 1,
         limit: 100,
       }),
@@ -263,7 +273,7 @@ export class AuditController {
       data: {
         period: {
           startDate,
-          endDate: new Date(),
+          endDate,
         },
         reservationChanges: {
           total: reservationChanges.total,
