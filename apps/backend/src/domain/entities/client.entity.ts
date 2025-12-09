@@ -2,6 +2,7 @@
 import type { DNI } from '../value-objects/dni.value-object';
 import type { Email } from '../value-objects/email.value-object';
 import type { Phone } from '../value-objects/phone.value-object';
+import { Group } from './group.entity';
 
 export class Client {
   private readonly _id: number;
@@ -19,8 +20,13 @@ export class Client {
   private _password: string;
   private _isActive: boolean;
   private _outstandingBalance: number; // Saldo pendiente/deuda
+  private _groups: Group[];
   private readonly _createdAt: Date;
   private _updatedAt: Date;
+
+  private _passwordResetToken?: string;
+  private _passwordResetExpires?: Date;
+  private static readonly PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1;
 
   private constructor(data: {
     id: number;
@@ -38,8 +44,11 @@ export class Client {
     password: string;
     isActive: boolean;
     outstandingBalance: number;
+    groups: Group[];
     createdAt: Date;
     updatedAt: Date;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
   }) {
     this._id = data.id;
     this._dni = data.dni;
@@ -56,8 +65,11 @@ export class Client {
     this._password = data.password;
     this._isActive = data.isActive;
     this._outstandingBalance = data.outstandingBalance;
+    this._groups = data.groups;
     this._createdAt = data.createdAt;
     this._updatedAt = data.updatedAt;
+    this._passwordResetToken = data.passwordResetToken;
+    this._passwordResetExpires = data.passwordResetExpires;
   }
 
   static create(
@@ -83,6 +95,7 @@ export class Client {
       password: '',
       isActive: true,
       outstandingBalance: 0,
+      groups: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -104,8 +117,11 @@ export class Client {
     password: string;
     isActive: boolean;
     outstandingBalance: number;
+    groups: Group[];
     createdAt: Date;
     updatedAt: Date;
+    passwordResetToken?: string;
+    passwordResetExpires?: Date;
   }): Client {
     return new Client(data);
   }
@@ -156,11 +172,20 @@ export class Client {
   get isActive(): boolean {
     return this._isActive;
   }
+  get groups(): Group[] {
+    return this._groups;
+  }
   get createdAt(): Date {
     return this._createdAt;
   }
   get updatedAt(): Date {
     return this._updatedAt;
+  }
+  get passwordResetToken(): string | undefined {
+    return this._passwordResetToken;
+  }
+  get passwordResetExpires(): Date | undefined {
+    return this._passwordResetExpires;
   }
 
   get outstandingBalance(): number {
@@ -247,6 +272,57 @@ export class Client {
 
   deactivate(): void {
     this._isActive = false;
+    this._updatedAt = new Date();
+  }
+
+  addGroup(group: Group): void {
+    if (!this._groups.find((g) => g.id === group.id)) {
+      this._groups.push(group);
+      this._updatedAt = new Date();
+    }
+  }
+
+  removeGroup(groupId: number): void {
+    this._groups = this._groups.filter((g) => g.id !== groupId);
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Genera un token de recuperación de contraseña
+   */
+  generatePasswordResetToken(): string {
+    const token = crypto.randomBytes(32).toString('hex');
+    this._passwordResetToken = token;
+    const now = new Date();
+    this._passwordResetExpires = new Date(
+      now.getTime() + Client.PASSWORD_RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
+    this._updatedAt = new Date();
+    return token;
+  }
+
+  /**
+   * Valida y consume el token de recuperación de contraseña
+   */
+  validatePasswordResetToken(token: string): boolean {
+    if (!this._passwordResetToken || !this._passwordResetExpires) {
+      return false;
+    }
+    if (this._passwordResetToken !== token) {
+      return false;
+    }
+    if (new Date() > this._passwordResetExpires) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Limpia el token de recuperación de contraseña
+   */
+  clearPasswordResetToken(): void {
+    this._passwordResetToken = undefined;
+    this._passwordResetExpires = undefined;
     this._updatedAt = new Date();
   }
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { searchReservationsByDate, type ReservationListItem } from '../../api/reservations.api';
-import { ReservationStatusApi } from '../../types/reservations';
+import { searchReservationsByDate, type ReservationListItem, type ReservationStatusApi } from '../../api/reservations.api';
 
 type DateMode = 'day' | 'range';
 

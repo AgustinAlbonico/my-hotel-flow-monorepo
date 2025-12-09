@@ -31,12 +31,17 @@ describe('CancelReservationUseCase', () => {
       isRoomAvailable: jest.fn(),
     } as any;
 
+    const auditService = {
+      logReservationChange: jest.fn(),
+    } as any;
+
     const sut = new CancelReservationUseCase(
       reservationRepository,
       roomRepository,
+      auditService,
     );
 
-    return { sut, reservationRepository, roomRepository };
+    return { sut, reservationRepository, roomRepository, auditService };
   };
 
   it('should mark room as available when cancelling an active reservation with occupied room', async () => {

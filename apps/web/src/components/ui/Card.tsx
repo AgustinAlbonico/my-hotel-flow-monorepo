@@ -42,7 +42,7 @@ export const Card: React.FC<CardProps> & {
   return (
     <div
       className={cn(
-        'bg-white rounded-lg shadow-md transition-shadow duration-300',
+        'bg-white dark:bg-gray-800 rounded-lg shadow-md transition-shadow duration-300',
         hoverable && 'hover:shadow-xl cursor-pointer',
         paddingClasses[padding],
         className
@@ -55,7 +55,7 @@ export const Card: React.FC<CardProps> & {
 
 const CardHeader: React.FC<CardHeaderProps> = ({ children, className }) => {
   return (
-    <div className={cn('border-b border-gray-200 pb-4 mb-4', className)}>
+    <div className={cn('border-b border-gray-200 dark:border-gray-700 pb-4 mb-4', className)}>
       {children}
     </div>
   );
@@ -67,7 +67,7 @@ const CardBody: React.FC<CardBodyProps> = ({ children, className }) => {
 
 const CardFooter: React.FC<CardFooterProps> = ({ children, className }) => {
   return (
-    <div className={cn('border-t border-gray-200 pt-4 mt-4', className)}>
+    <div className={cn('border-t border-gray-200 dark:border-gray-700 pt-4 mt-4', className)}>
       {children}
     </div>
   );

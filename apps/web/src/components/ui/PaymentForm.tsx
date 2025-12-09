@@ -60,16 +60,16 @@ export const PaymentForm = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Monto pendiente */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-700 mb-1">Saldo pendiente</p>
-        <p className="text-2xl font-bold text-blue-900">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <p className="text-sm text-blue-700 dark:text-blue-300 mb-1">Saldo pendiente</p>
+        <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
           ${outstandingAmount.toFixed(2)}
         </p>
       </div>
 
       {/* Monto del pago */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Monto a pagar *
         </label>
         <div className="flex gap-2">
@@ -82,14 +82,14 @@ export const PaymentForm = ({
             onChange={(e) => setAmount(e.target.value)}
             required
             disabled={isLoading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-800"
             placeholder="0.00"
           />
           <button
             type="button"
             onClick={setFullAmount}
             disabled={isLoading}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
           >
             Total
           </button>
@@ -98,7 +98,7 @@ export const PaymentForm = ({
 
       {/* Método de pago */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Método de pago *
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -113,8 +113,8 @@ export const PaymentForm = ({
               disabled={isLoading}
               className={`p-3 rounded-lg border-2 transition-all ${
                 method === pm
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
               } disabled:opacity-50`}
             >
               <PaymentMethodBadge method={pm} />
@@ -125,7 +125,7 @@ export const PaymentForm = ({
 
       {/* Referencia */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Referencia / Comprobante (opcional)
         </label>
         <input
@@ -134,7 +134,7 @@ export const PaymentForm = ({
           onChange={(e) => setReference(e.target.value)}
           disabled={isLoading}
           maxLength={100}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-800"
           placeholder="Ej: Transferencia #123456, Cheque 00789"
         />
       </div>
@@ -143,7 +143,7 @@ export const PaymentForm = ({
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-blue-600 dark:bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-700 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
       >
         {isLoading ? 'Procesando...' : 'Registrar Pago'}
       </button>

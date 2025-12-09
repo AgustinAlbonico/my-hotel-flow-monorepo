@@ -4,13 +4,22 @@ import { DNI } from '../../../../domain/value-objects/dni.value-object';
 import { Email } from '../../../../domain/value-objects/email.value-object';
 import { Phone } from '../../../../domain/value-objects/phone.value-object';
 import { ClientOrmEntity } from '../entities/client.orm-entity';
+import { GroupMapper } from './group.mapper';
 
 @Injectable()
 export class ClientMapper {
+  constructor(private readonly groupMapper: GroupMapper) { }
+
   toDomain(orm: ClientOrmEntity): Client {
     const dni = DNI.create(orm.dni);
     const email = Email.create(orm.email);
     const phone = orm.phone ? Phone.create(orm.phone) : null;
+
+    const groups = orm.groups
+      ? orm.groups
+        .map((g) => this.groupMapper.toDomain(g))
+        .filter((g): g is NonNullable<typeof g> => g !== null)
+      : [];
 
     return Client.reconstruct({
       id: orm.id,
@@ -28,8 +37,11 @@ export class ClientMapper {
       password: orm.password,
       isActive: orm.isActive,
       outstandingBalance: Number(orm.outstandingBalance) || 0,
+      groups,
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
+      passwordResetToken: orm.passwordResetToken || undefined,
+      passwordResetExpires: orm.passwordResetExpires || undefined,
     });
   }
 
@@ -50,8 +62,11 @@ export class ClientMapper {
     orm.password = domain.password;
     orm.isActive = domain.isActive;
     orm.outstandingBalance = domain.outstandingBalance;
+    orm.groups = domain.groups.map((g) => this.groupMapper.toOrm(g));
     orm.createdAt = domain.createdAt;
     orm.updatedAt = domain.updatedAt;
+    orm.passwordResetToken = domain.passwordResetToken || null;
+    orm.passwordResetExpires = domain.passwordResetExpires || null;
     return orm;
   }
 }

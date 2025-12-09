@@ -18,7 +18,7 @@ export class TypeOrmClientRepository implements IClientRepository {
     @InjectRepository(ClientOrmEntity)
     private readonly repository: Repository<ClientOrmEntity>,
     private readonly mapper: ClientMapper,
-  ) {}
+  ) { }
 
   async findByDNI(dni: DNI): Promise<Client | null> {
     const ormEntity = await this.repository.findOne({
@@ -37,9 +37,13 @@ export class TypeOrmClientRepository implements IClientRepository {
   }
 
   async findByEmail(email: Email): Promise<Client | null> {
-    const ormEntity = await this.repository.findOne({
-      where: { email: email.value, isActive: true },
-    });
+    const ormEntity = await this.repository.createQueryBuilder('client')
+      .addSelect('client.password') // Explicitly select password
+      .leftJoinAndSelect('client.groups', 'groups') // Also load groups eagerly as needed by mapper
+      .where('client.email = :email', { email: email.value })
+      .andWhere('client.isActive = :isActive', { isActive: true })
+      .getOne();
+
     if (!ormEntity) return null;
     return this.mapper.toDomain(ormEntity);
   }
@@ -75,5 +79,27 @@ export class TypeOrmClientRepository implements IClientRepository {
       order: { createdAt: 'DESC' },
     });
     return ormEntities.map((e) => this.mapper.toDomain(e));
+  }
+
+  async findByPasswordResetToken(token: string): Promise<Client | null> {
+    const ormEntity = await this.repository.findOne({
+      where: { passwordResetToken: token, isActive: true },
+    });
+    if (!ormEntity) return null;
+    return this.mapper.toDomain(ormEntity);
+  }
+
+  async findByIdWithRelations(id: number): Promise<Client | null> {
+    const ormEntity = await this.repository.findOne({
+      where: { id, isActive: true },
+      relations: [
+        'groups',
+        'groups.actions',
+        'groups.children',
+        'groups.children.actions',
+      ],
+    });
+    if (!ormEntity) return null;
+    return this.mapper.toDomain(ormEntity);
   }
 }

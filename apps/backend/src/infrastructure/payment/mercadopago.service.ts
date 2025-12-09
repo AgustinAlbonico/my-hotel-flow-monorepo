@@ -1,12 +1,38 @@
 /**
  * MercadoPago Configuration Service
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
+/**
+ * Interface para el body de preferencia de MercadoPago
+ */
+interface MercadoPagoPreferenceBody {
+  items: Array<{
+    id: string;
+    title: string;
+    quantity: number;
+    unit_price: number;
+    description?: string;
+    currency_id: string;
+  }>;
+  back_urls: {
+    success: string;
+    failure: string;
+    pending: string;
+  };
+  notification_url: string;
+  external_reference?: string;
+  payer?: {
+    email: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class MercadoPagoService {
+  private readonly logger = new Logger(MercadoPagoService.name);
   private client: MercadoPagoConfig;
   private preferenceClient: Preference;
   private paymentClient: Payment;
@@ -18,8 +44,8 @@ export class MercadoPagoService {
     );
 
     if (!accessToken) {
-      console.warn(
-        '⚠️  MERCADOPAGO_ACCESS_TOKEN no configurado. Las funciones de pago estarán deshabilitadas.',
+      this.logger.warn(
+        'MERCADOPAGO_ACCESS_TOKEN no configurado. Las funciones de pago estarán deshabilitadas.',
       );
     }
 
@@ -41,7 +67,7 @@ export class MercadoPagoService {
     description?: string;
     externalReference?: string;
     payerEmail?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }) {
     // Normalizar back URL: evitar valores vacíos que rompan back_urls.success
     const rawBackUrl = this.configService.get<string>(
@@ -64,39 +90,51 @@ export class MercadoPagoService {
         ? rawNotificationUrl
         : 'http://localhost:3000/api/webhooks/mercadopago';
 
+    // Construir las URLs de retorno
+    const backUrls = {
+      success: `${backUrl}/payment/success`,
+      failure: `${backUrl}/payment/failure`,
+      pending: `${backUrl}/payment/pending`,
+    };
+
+    this.logger.debug(`Configurando preferencia MercadoPago con back_urls: ${JSON.stringify(backUrls)}`);
+
     try {
-      const preference = await this.preferenceClient.create({
-        body: {
-          items: [
-            {
-              id: data.externalReference || 'item-1',
-              title: data.title,
-              quantity: data.quantity,
-              unit_price: data.unitPrice,
-              description: data.description,
-              currency_id: 'ARS',
-            },
-          ],
-          payer: data.payerEmail
-            ? {
-                email: data.payerEmail,
-              }
-            : undefined,
-          back_urls: {
-            success: `${backUrl}/payment/success`,
-            failure: `${backUrl}/payment/failure`,
-            pending: `${backUrl}/payment/pending`,
+      const preferenceBody: MercadoPagoPreferenceBody = {
+        items: [
+          {
+            id: data.externalReference || 'item-1',
+            title: data.title,
+            quantity: data.quantity,
+            unit_price: data.unitPrice,
+            description: data.description,
+            currency_id: 'ARS',
           },
-          auto_return: 'approved',
-          notification_url: notificationUrl,
-          external_reference: data.externalReference,
-          metadata: data.metadata,
-        },
+        ],
+        back_urls: backUrls,
+        notification_url: notificationUrl,
+        external_reference: data.externalReference,
+      };
+
+      // Solo agregar payer si se proporciona email
+      if (data.payerEmail) {
+        preferenceBody.payer = {
+          email: data.payerEmail,
+        };
+      }
+
+      // Solo agregar metadata si existe
+      if (data.metadata) {
+        preferenceBody.metadata = data.metadata;
+      }
+
+      const preference = await this.preferenceClient.create({
+        body: preferenceBody,
       });
 
       return preference;
     } catch (error) {
-      console.error('Error creando preferencia de MercadoPago:', error);
+      this.logger.error('Error creando preferencia de MercadoPago', error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }

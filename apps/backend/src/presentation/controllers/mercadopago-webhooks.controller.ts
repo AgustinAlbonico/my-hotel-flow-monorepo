@@ -26,6 +26,32 @@ import { CreatePaymentPreferenceUseCase } from '../../application/use-cases/paym
 import { PaymentMethod } from '../../domain/entities/payment.entity';
 import { MercadoPagoService } from '../../infrastructure/payment/mercadopago.service';
 
+/**
+ * Tipos para webhook de MercadoPago
+ */
+interface MercadoPagoWebhookBody {
+  type: string;
+  data?: {
+    id?: string | number;
+  };
+  action?: string;
+}
+
+interface MercadoPagoPaymentResponse {
+  id: number | string;
+  status?: string;
+  status_detail?: string;
+  payment_type_id?: string;
+  payment_method_id?: string;
+  transaction_amount?: number;
+  payer?: {
+    email?: string;
+    id?: string | number;
+  };
+  external_reference?: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Controller('webhooks/mercadopago')
 export class MercadoPagoWebhooksController {
   private readonly logger = new Logger(MercadoPagoWebhooksController.name);
@@ -45,7 +71,7 @@ export class MercadoPagoWebhooksController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
-    @Body() body: any,
+    @Body() body: MercadoPagoWebhookBody,
     @Headers('x-signature') signature: string,
     @Headers('x-request-id') requestId: string,
   ) {
@@ -87,7 +113,7 @@ export class MercadoPagoWebhooksController {
         }
 
         // 2) Reconciliar contra API de MP: obtener detalles reales del pago
-        const mpPayment = await this.mercadoPagoService.getPayment(paymentId);
+        const mpPayment = await this.mercadoPagoService.getPayment(String(paymentId)) as MercadoPagoPaymentResponse | null;
 
         // Validaciones mínimas del objeto retornado
         if (!mpPayment || !('id' in mpPayment)) {
@@ -96,20 +122,20 @@ export class MercadoPagoWebhooksController {
 
         const paymentData = {
           id: String(mpPayment.id),
-          status: String((mpPayment as any).status ?? 'pending'),
-          status_detail: String((mpPayment as any).status_detail ?? ''),
-          payment_type_id: String((mpPayment as any).payment_type_id ?? ''),
-          payment_method_id: String((mpPayment as any).payment_method_id ?? ''),
+          status: String(mpPayment.status ?? 'pending'),
+          status_detail: String(mpPayment.status_detail ?? ''),
+          payment_type_id: String(mpPayment.payment_type_id ?? ''),
+          payment_method_id: String(mpPayment.payment_method_id ?? ''),
           transaction_amount: Number(
-            (mpPayment as any).transaction_amount ?? 0,
+            mpPayment.transaction_amount ?? 0,
           ),
           payer: {
-            email: String((mpPayment as any)?.payer?.email ?? ''),
+            email: String(mpPayment.payer?.email ?? ''),
           },
           external_reference: String(
-            (mpPayment as any).external_reference ?? '',
+            mpPayment.external_reference ?? '',
           ),
-          metadata: (mpPayment as any).metadata ?? {},
+          metadata: mpPayment.metadata ?? {},
         };
 
         await this.processWebhookUseCase.execute(paymentData);
@@ -146,8 +172,8 @@ export class MercadoPagoWebhooksController {
       let method: PaymentMethod | undefined = undefined;
       if (body.method) {
         const value = String(body.method).toUpperCase();
-        if (value in PaymentMethod) {
-          method = (PaymentMethod as any)[value] as PaymentMethod;
+        if (Object.values(PaymentMethod).includes(value as PaymentMethod)) {
+          method = value as PaymentMethod;
         }
       }
 
@@ -183,7 +209,7 @@ export class MercadoPagoWebhooksController {
   private verifySignature(
     signatureHeader: string | undefined,
     requestId: string | undefined,
-    body: any,
+    body: MercadoPagoWebhookBody,
     secret: string,
   ): boolean {
     if (!signatureHeader || !requestId || !body?.data?.id) return false;

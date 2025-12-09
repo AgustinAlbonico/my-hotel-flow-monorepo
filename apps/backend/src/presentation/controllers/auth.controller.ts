@@ -7,6 +7,8 @@
   HttpStatus,
   UseGuards,
   Req,
+  Inject,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,6 +16,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LoginUseCase } from '../../application/use-cases/auth/login.use-case';
 import { RefreshTokenUseCase } from '../../application/use-cases/auth/refresh-token.use-case';
@@ -27,6 +30,8 @@ import { RefreshTokenRequestDto } from '../dtos/auth/refresh-token-request.dto';
 import { ChangePasswordRequestDto } from '../dtos/auth/change-password-request.dto';
 import { ForgotPasswordRequestDto } from '../dtos/auth/forgot-password-request.dto';
 import { ResetPasswordWithTokenRequestDto } from '../dtos/auth/reset-password-with-token-request.dto';
+import type { IClientRepository } from '../../domain/repositories/client.repository.interface';
+import type { AuthenticatedRequest } from '../types';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -39,19 +44,26 @@ export class AuthController {
     private readonly resetPasswordUseCase: ResetPasswordWithTokenUseCase,
     private readonly getUserByIdUseCase: GetUserByIdUseCase,
     private readonly getInheritedActionsUseCase: GetInheritedActionsUseCase,
-  ) {}
+    @Inject('IClientRepository')
+    private readonly clientRepository: IClientRepository,
+  ) { }
 
   @Post('login')
-  @ApiOperation({ summary: 'Login with username/email and password' })
-  @ApiResponse({
-    status: 200,
-    description: 'Login successful',
-  })
-  async login(@Body() dto: LoginRequestDto) {
-    return await this.loginUseCase.execute({
-      username: dto.identity,
-      password: dto.password,
-    });
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Iniciar sesión' })
+  @ApiResponse({ status: 200, description: 'Login exitoso' })
+  @ApiResponse({ status: 401, description: 'Credenciales inválidas' })
+  async login(@Body() dto: LoginRequestDto, @Req() req: Request) {
+    return await this.loginUseCase.execute(
+      {
+        username: dto.identity,
+        password: dto.password,
+      },
+      {
+        ipAddress: req.ip || (req as any).connection?.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      },
+    );
   }
 
   @Get('me')
@@ -60,8 +72,37 @@ export class AuthController {
   @ApiOperation({ summary: 'Obtener perfil del usuario autenticado' })
   @ApiResponse({ status: 200, description: 'Perfil del usuario' })
   @ApiResponse({ status: 401, description: 'No autenticado' })
-  async getProfile(@Req() req: any) {
-    const userId = req.user?.id || req.user?.sub;
+  async getProfile(@Req() req: AuthenticatedRequest) {
+    const userId = req.user?.id ?? req.user?.sub;
+    const userType = req.user?.userType || 'user';
+
+    if (!userId) {
+      throw new NotFoundException('User ID not found in request');
+    }
+
+    if (userType === 'client') {
+      const client = await this.clientRepository.findById(userId);
+      if (!client) {
+        throw new NotFoundException(`Client with ID ${userId} not found`);
+      }
+
+      // Return a compatible response structure
+      return {
+        id: client.id,
+        username: `${client.firstName} ${client.lastName}`,
+        email: client.email.value,
+        fullName: `${client.firstName} ${client.lastName}`,
+        isActive: client.isActive,
+        groups: client.groups.map((group) => ({
+          id: group.id,
+          name: group.name,
+          description: group.description,
+        })),
+        actions: [], // Clients don't have actions
+        role: 'client', // Explicitly state role
+      };
+    }
+
     return await this.getUserByIdUseCase.execute(userId);
   }
 
@@ -79,8 +120,25 @@ export class AuthController {
     type: [String],
   })
   @ApiResponse({ status: 401, description: 'No autenticado' })
-  async getPermissions(@Req() req: any): Promise<string[]> {
-    const userId = req.user?.id || req.user?.sub;
+  async getPermissions(@Req() req: AuthenticatedRequest): Promise<string[]> {
+    const userId = req.user?.id ?? req.user?.sub;
+    const userType = req.user?.userType || 'user';
+
+    if (!userId) {
+      throw new NotFoundException('User ID not found in request');
+    }
+
+    if (userType === 'client') {
+      const client = await this.clientRepository.findByIdWithRelations(userId);
+      if (!client) {
+        throw new NotFoundException(`Client with ID ${userId} not found`);
+      }
+
+      const allActions = client.groups.flatMap((g) => g.getEffectiveActions());
+      const uniqueKeys = [...new Set(allActions.map((a) => a.key))];
+      return uniqueKeys;
+    }
+
     const actions = await this.getInheritedActionsUseCase.execute(userId);
     // Retornar solo las keys de las acciones
     return actions.map((action) => action.key);
@@ -107,8 +165,11 @@ export class AuthController {
     status: 401,
     description: 'Contraseña actual incorrecta o no autenticado',
   })
-  async changePassword(@Body() dto: ChangePasswordRequestDto, @Req() req: any) {
-    const userId = req.user?.userId || req.user?.sub;
+  async changePassword(@Body() dto: ChangePasswordRequestDto, @Req() req: AuthenticatedRequest) {
+    const userId = req.user?.userId ?? req.user?.sub;
+    if (!userId) {
+      throw new NotFoundException('User ID not found in request');
+    }
     await this.changePasswordUseCase.execute(userId, {
       currentPassword: dto.currentPassword,
       newPassword: dto.newPassword,

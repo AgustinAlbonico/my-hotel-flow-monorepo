@@ -13,4 +13,11 @@ export class CheckDniResponseDto {
     description: 'Mensaje descriptivo',
   })
   message: string;
+
+  @ApiProperty({
+    example: 1,
+    description: 'ID del cliente si existe',
+    required: false,
+  })
+  clientId?: number;
 }

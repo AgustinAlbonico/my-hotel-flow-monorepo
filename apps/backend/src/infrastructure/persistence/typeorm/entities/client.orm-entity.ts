@@ -5,7 +5,10 @@
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
+import { GroupOrmEntity } from './group.orm-entity';
 
 @Entity('clients')
 @Index(['dni'], { where: 'is_active = true' })
@@ -61,6 +64,20 @@ export class ClientOrmEntity {
     default: 0,
   })
   outstandingBalance: number;
+
+  @Column({ name: 'password_reset_token', type: 'varchar', length: 255, nullable: true })
+  passwordResetToken: string | null;
+
+  @Column({ name: 'password_reset_expires', type: 'timestamp', nullable: true })
+  passwordResetExpires: Date | null;
+
+  @ManyToMany(() => GroupOrmEntity)
+  @JoinTable({
+    name: 'client_groups',
+    joinColumn: { name: 'client_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'group_id', referencedColumnName: 'id' },
+  })
+  groups: GroupOrmEntity[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -8,6 +8,7 @@ import { ClientOrmEntity } from '../../infrastructure/persistence/typeorm/entiti
 import { ReservationOrmEntity } from '../../infrastructure/persistence/typeorm/entities/reservation.orm-entity';
 import { AccountMovementOrmEntity } from '../../infrastructure/persistence/typeorm/entities/account-movement.orm-entity';
 import { MercadoPagoPaymentOrmEntity } from '../../infrastructure/persistence/typeorm/entities/mercadopago-payment.orm-entity';
+import { RoomOrmEntity } from '../../infrastructure/persistence/typeorm/entities/room.orm-entity';
 
 // Repositories
 import { TypeOrmInvoiceRepository } from '../../infrastructure/persistence/typeorm/repositories/invoice.repository.impl';
@@ -16,6 +17,7 @@ import { TypeOrmClientRepository } from '../../infrastructure/persistence/typeor
 import { TypeOrmReservationRepository } from '../../infrastructure/persistence/typeorm/repositories/reservation.repository.impl';
 import { TypeOrmAccountMovementRepository } from '../../infrastructure/persistence/typeorm/repositories/account-movement.repository.impl';
 import { TypeOrmMercadoPagoPaymentRepository } from '../../infrastructure/persistence/typeorm/repositories/mercadopago-payment.repository.impl';
+import { TypeOrmRoomRepository } from '../../infrastructure/persistence/typeorm/repositories/room.repository.impl';
 
 // Mappers
 import { InvoiceMapper } from '../../infrastructure/persistence/typeorm/mappers/invoice.mapper';
@@ -24,6 +26,9 @@ import { ClientMapper } from '../../infrastructure/persistence/typeorm/mappers/c
 import { ReservationMapper } from '../../infrastructure/persistence/typeorm/mappers/reservation.mapper';
 import { AccountMovementMapper } from '../../infrastructure/persistence/typeorm/mappers/account-movement.mapper';
 import { MercadoPagoPaymentMapper } from '../../infrastructure/persistence/typeorm/mappers/mercadopago-payment.mapper';
+import { RoomMapper } from '../../infrastructure/persistence/typeorm/mappers/room.mapper';
+import { GroupMapper } from '../../infrastructure/persistence/typeorm/mappers/group.mapper';
+import { ActionMapper } from '../../infrastructure/persistence/typeorm/mappers/action.mapper';
 
 // Use Cases
 import { GenerateInvoiceUseCase } from '../../application/use-cases/invoice/generate-invoice.use-case';
@@ -41,6 +46,9 @@ import { PaymentsController } from '../../presentation/controllers/payments.cont
 import { AccountStatementsController } from '../../presentation/controllers/account-statements.controller';
 import { MercadoPagoWebhooksController } from '../../presentation/controllers/mercadopago-webhooks.controller';
 
+// PDF Module
+import { PdfModule } from '../../infrastructure/pdf/pdf.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -50,7 +58,9 @@ import { MercadoPagoWebhooksController } from '../../presentation/controllers/me
       ReservationOrmEntity,
       AccountMovementOrmEntity,
       MercadoPagoPaymentOrmEntity,
+      RoomOrmEntity,
     ]),
+    PdfModule,
   ],
   controllers: [
     InvoicesController,
@@ -60,12 +70,15 @@ import { MercadoPagoWebhooksController } from '../../presentation/controllers/me
   ],
   providers: [
     // Mappers
+    ActionMapper,
+    GroupMapper,
     InvoiceMapper,
     PaymentMapper,
     ClientMapper,
     ReservationMapper,
     AccountMovementMapper,
     MercadoPagoPaymentMapper,
+    RoomMapper,
 
     // Repositories
     {
@@ -91,6 +104,10 @@ import { MercadoPagoWebhooksController } from '../../presentation/controllers/me
     {
       provide: 'IMercadoPagoPaymentRepository',
       useClass: TypeOrmMercadoPagoPaymentRepository,
+    },
+    {
+      provide: 'IRoomRepository',
+      useClass: TypeOrmRoomRepository,
     },
 
     // Services

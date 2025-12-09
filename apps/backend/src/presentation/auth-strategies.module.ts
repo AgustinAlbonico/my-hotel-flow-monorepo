@@ -27,7 +27,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         return {
           secret,
           signOptions: {
-            expiresIn: expiresIn as any,
+            // Cast explícito para satisfacer el tipo StringValue de la librería ms
+            expiresIn: expiresIn as `${number}${'s' | 'm' | 'h' | 'd'}` | number,
           },
         };
       },

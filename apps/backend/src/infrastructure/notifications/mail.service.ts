@@ -68,6 +68,22 @@ export class MailService implements INotificationService {
     });
   }
 
+  async sendPasswordReset(
+    to: string,
+    variables: IEmailVariables,
+  ): Promise<void> {
+    this.logger.log(
+      `Enviando email de recuperación de contraseña a ${to}`,
+    );
+
+    await this.mailerService.sendMail({
+      to,
+      subject: `Recuperación de contraseña — MyHotelFlow`,
+      template: 'password-reset',
+      context: variables,
+    });
+  }
+
   async sendSMS(to: string, message: string): Promise<void> {
     if (this.twilioClient && this.twilioFrom) {
       try {

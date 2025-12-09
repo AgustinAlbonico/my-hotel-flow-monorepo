@@ -45,13 +45,19 @@ describe('CreateReservationUseCase - idempotencia', () => {
     const notificationService: jest.Mocked<INotificationService> = {
       sendProfileCreated: jest.fn(),
       sendReservationConfirmation: jest.fn(),
+      sendPasswordReset: jest.fn(),
       sendSMS: jest.fn(),
     };
+
+    const auditService = {
+      logReservationChange: jest.fn(),
+    } as any;
 
     const sut = new CreateReservationUseCase(
       clientRepository,
       roomRepository,
       reservationRepository,
+      auditService,
       notificationService,
     );
 
@@ -61,6 +67,7 @@ describe('CreateReservationUseCase - idempotencia', () => {
       roomRepository,
       reservationRepository,
       notificationService,
+      auditService,
     };
   };
 

@@ -77,6 +77,24 @@ export interface UpdateClientRequest {
 export interface CheckDniResponse {
   exists: boolean;
   message: string;
+  clientId?: number;
+}
+
+export interface ClientsListParams {
+  page?: number;
+  limit?: number;
+  search?: string; // Búsqueda por DNI, nombre, apellido
+  dni?: string; // Filtro específico por DNI
+}
+
+export interface ClientsListResponse {
+  data: ClientListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 /**
@@ -110,12 +128,23 @@ export const createClient = async (
 };
 
 /**
- * Obtiene la lista de todos los clientes
+ * Obtiene la lista de clientes con paginación y filtros
+ * @param params - Parámetros de búsqueda y paginación
+ * @returns Lista de clientes con información de paginación
+ */
+export const searchClients = async (
+  params?: ClientsListParams,
+): Promise<ClientsListResponse> => {
+  const response = await axios.get<ClientsListResponse>('/clients', { params });
+  return response.data;
+};
+
+/**
+ * Obtiene la lista de todos los clientes (sin paginación, para compatibilidad)
  * @returns Lista de clientes
  */
 export const listClients = async (): Promise<ClientListItem[]> => {
   const response = await axios.get<ClientListItem[]>('/clients');
-  // El interceptor ya extrae 'data' de la respuesta estándar
   return response.data;
 };
 

@@ -19,7 +19,9 @@ import { ListReservationsUseCase } from './list-reservations.use-case';
 import { ListReservationsByStatusUseCase } from './list-reservations-by-status.use-case';
 import { ListReservationsByDateUseCase } from './list-reservations-by-date.use-case';
 import { GetDailyOccupancyUseCase } from './get-daily-occupancy.use-case';
+import { AutoCancelNoShowUseCase } from './auto-cancel-no-show.use-case';
 import { PresentationCommonModule } from '../../../presentation/presentation-common.module';
+import { AuditModule } from '../../../infrastructure/audit.module';
 import { ClientOrmEntity } from '../../../infrastructure/persistence/typeorm/entities/client.orm-entity';
 import { RoomOrmEntity } from '../../../infrastructure/persistence/typeorm/entities/room.orm-entity';
 import { ReservationOrmEntity } from '../../../infrastructure/persistence/typeorm/entities/reservation.orm-entity';
@@ -35,10 +37,13 @@ import { InvoiceMapper } from '../../../infrastructure/persistence/typeorm/mappe
 import { AccountMovementOrmEntity } from '../../../infrastructure/persistence/typeorm/entities/account-movement.orm-entity';
 import { TypeOrmAccountMovementRepository } from '../../../infrastructure/persistence/typeorm/repositories/account-movement.repository.impl';
 import { AccountMovementMapper } from '../../../infrastructure/persistence/typeorm/mappers/account-movement.mapper';
+import { GroupMapper } from '../../../infrastructure/persistence/typeorm/mappers/group.mapper';
+import { ActionMapper } from '../../../infrastructure/persistence/typeorm/mappers/action.mapper';
 
 @Module({
   imports: [
     PresentationCommonModule,
+    AuditModule,
     TypeOrmModule.forFeature([
       ClientOrmEntity,
       RoomOrmEntity,
@@ -48,6 +53,8 @@ import { AccountMovementMapper } from '../../../infrastructure/persistence/typeo
     ]),
   ],
   providers: [
+    ActionMapper,
+    GroupMapper,
     ClientMapper,
     RoomMapper,
     ReservationMapper,
@@ -86,6 +93,7 @@ import { AccountMovementMapper } from '../../../infrastructure/persistence/typeo
     ListReservationsByStatusUseCase,
     ListReservationsByDateUseCase,
     GetDailyOccupancyUseCase,
+    AutoCancelNoShowUseCase,
   ],
   exports: [
     GetReservationManagementMenuUseCase,
@@ -101,6 +109,7 @@ import { AccountMovementMapper } from '../../../infrastructure/persistence/typeo
     ListReservationsByStatusUseCase,
     ListReservationsByDateUseCase,
     GetDailyOccupancyUseCase,
+    AutoCancelNoShowUseCase,
   ],
 })
-export class ReservationUseCasesModule {}
+export class ReservationUseCasesModule { }

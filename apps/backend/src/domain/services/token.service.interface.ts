@@ -12,6 +12,7 @@ export interface TokenPayload {
   email: string;
   jti: string; // JWT ID único
   type: 'access' | 'refresh';
+  userType?: 'user' | 'client'; // Tipo de usuario
   iat?: number; // Issued at
   exp?: number; // Expiration
 }
@@ -31,9 +32,15 @@ export interface ITokenService {
    * @param userId - ID del usuario
    * @param username - Username del usuario
    * @param email - Email del usuario
+   * @param userType - Tipo de usuario ('user' | 'client') - Default: 'user'
    * @returns Par de tokens
    */
-  generateTokenPair(userId: number, username: string, email: string): TokenPair;
+  generateTokenPair(
+    userId: number,
+    username: string,
+    email: string,
+    userType?: 'user' | 'client',
+  ): TokenPair;
 
   /**
    * Verificar y decodificar un token

@@ -13,7 +13,10 @@ import { CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 interface ApiErrorLike {
   response?: {
     data?: {
-      message?: string;
+      error?: {
+        message?: string;
+        code?: string;
+      };
     };
   };
 }
@@ -49,7 +52,14 @@ export const ChangePasswordPage: React.FC = () => {
       }, 2000);
     } catch (err) {
       const apiError = err as ApiErrorLike;
-      setError(apiError.response?.data?.message || 'Error al cambiar contraseña');
+      const errorCode = apiError.response?.data?.error?.code;
+      const errorMessage = apiError.response?.data?.error?.message;
+
+      if (errorCode === 'INVALID_CREDENTIALS' || errorMessage === 'Current password is incorrect') {
+        setError('Credenciales inválidas: La contraseña actual no es correcta');
+      } else {
+        setError(errorMessage || 'Error al cambiar contraseña. Por favor, inténtalo más tarde.');
+      }
     }
   };
 

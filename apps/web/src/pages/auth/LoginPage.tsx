@@ -48,8 +48,8 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <img src="../../assets/logo.jpg" alt=""  className='w-8 h-8'/>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="https://i.imgur.com/nvcCGnI.jpeg" alt="MyHotelFlow Logo" className="w-24 h-24 mb-4 object-contain rounded-full shadow-md" />
           <h1 className="text-4xl font-bold text-primary-600 mb-2">
             MyHotelFlow
           </h1>

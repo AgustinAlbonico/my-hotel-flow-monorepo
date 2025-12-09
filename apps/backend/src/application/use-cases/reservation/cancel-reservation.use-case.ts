@@ -8,6 +8,9 @@ import type { IReservationRepository } from '../../../domain/repositories/reserv
 import type { IRoomRepository } from '../../../domain/repositories/room.repository.interface';
 import { RoomStatus } from '../../../domain/entities/room.entity';
 import { CancelReservationDto } from '../../dtos/reservation/cancel-reservation.dto';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+import { AuditActionType } from '../../../infrastructure/persistence/typeorm/entities/reservation-audit-log.orm-entity';
+import type { AuditContext } from './create-reservation.use-case';
 
 /**
  * CancelReservationUseCase
@@ -22,11 +25,13 @@ export class CancelReservationUseCase {
     private readonly reservationRepository: IReservationRepository,
     @Inject('IRoomRepository')
     private readonly roomRepository: IRoomRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(
     reservationId: number,
     dto: CancelReservationDto,
+    auditContext?: AuditContext,
   ): Promise<void> {
     // 1. Buscar reserva
     const reservation =
@@ -56,6 +61,25 @@ export class CancelReservationUseCase {
 
     // 5. Persistir cambios de la reserva
     await this.reservationRepository.update(reservation);
+
+    // 6. Registrar en auditoría
+    if (auditContext) {
+      await this.auditService.logReservationChange({
+        reservationId: reservation.id,
+        actionType: AuditActionType.CANCEL,
+        changeReason: dto.reason,
+        userId: auditContext.userId,
+        username: auditContext.username,
+        system: auditContext.system,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        metadata: {
+          previousStatus: 'CONFIRMED',
+          newStatus: 'CANCELLED',
+          cancelReason: dto.reason,
+        },
+      });
+    }
 
     // TODO: Emitir evento ReservaCancelada
     // TODO: Enviar notificación al cliente

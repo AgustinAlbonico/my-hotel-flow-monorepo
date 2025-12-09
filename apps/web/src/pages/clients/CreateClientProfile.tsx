@@ -184,19 +184,17 @@ export default function CreateClientProfile() {
             {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center flex-1">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                    currentStep >= step
+                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${currentStep >= step
                       ? 'bg-primary-600 border-primary-600 text-white'
                       : 'bg-white border-gray-300 text-gray-400'
-                  }`}
+                    }`}
                 >
                   {step}
                 </div>
                 {step < 3 && (
                   <div
-                    className={`flex-1 h-1 mx-2 ${
-                      currentStep > step ? 'bg-primary-600' : 'bg-gray-300'
-                    }`}
+                    className={`flex-1 h-1 mx-2 ${currentStep > step ? 'bg-primary-600' : 'bg-gray-300'
+                      }`}
                   />
                 )}
               </div>
@@ -236,9 +234,8 @@ export default function CreateClientProfile() {
                   placeholder="Ej: 12345678"
                   maxLength={8}
                   disabled={!!preloadedDni}
-                  className={`w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                    preloadedDni ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${preloadedDni ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                 />
                 {preloadedDni && (
                   <p className="mt-1 text-sm text-blue-600">
@@ -282,10 +279,18 @@ export default function CreateClientProfile() {
                       El DNI ingresado ya existe en el sistema
                     </p>
                     <button
-                      onClick={() => navigate(`/clients?dni=${dniToCheck}`)}
+                      onClick={() => {
+                        if (dniCheckData?.clientId) {
+                          navigate(`/clients/${dniCheckData.clientId}`);
+                        } else {
+                          navigate(`/clients?dni=${dniToCheck}`);
+                        }
+                      }}
                       className="mt-2 text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
-                      Buscar cliente existente →
+                      {dniCheckData?.clientId
+                        ? 'Ir al perfil del cliente →'
+                        : 'Buscar cliente existente →'}
                     </button>
                   </div>
                 </div>
@@ -329,9 +334,8 @@ export default function CreateClientProfile() {
                     {...register('firstName')}
                     type="text"
                     placeholder="Ej: Juan"
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.firstName ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.firstName ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.firstName && (
                     <p className="mt-1 text-sm text-error-600">
@@ -348,9 +352,8 @@ export default function CreateClientProfile() {
                     {...register('lastName')}
                     type="text"
                     placeholder="Ej: Pérez"
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.lastName ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.lastName ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.lastName && (
                     <p className="mt-1 text-sm text-error-600">
@@ -367,9 +370,8 @@ export default function CreateClientProfile() {
                     {...register('email')}
                     type="email"
                     placeholder="ejemplo@correo.com"
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.email ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.email ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.email && (
                     <p className="mt-1 text-sm text-error-600">
@@ -387,9 +389,8 @@ export default function CreateClientProfile() {
                     {...register('phone')}
                     type="tel"
                     placeholder="Ej: 1123456789"
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.phone ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.phone ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.phone && (
                     <p className="mt-1 text-sm text-error-600">
@@ -406,9 +407,8 @@ export default function CreateClientProfile() {
                   <input
                     {...register('birthDate')}
                     type="date"
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.birthDate ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.birthDate ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.birthDate && (
                     <p className="mt-1 text-sm text-error-600">
@@ -427,9 +427,8 @@ export default function CreateClientProfile() {
                     type="text"
                     placeholder="Ej: Av. Corrientes 1234"
                     maxLength={255}
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.address ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.address ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.address && (
                     <p className="mt-1 text-sm text-error-600">
@@ -449,9 +448,8 @@ export default function CreateClientProfile() {
                       type="text"
                       placeholder="Ej: Buenos Aires"
                       maxLength={100}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                        errors.city ? 'border-error-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.city ? 'border-error-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.city && (
                       <p className="mt-1 text-sm text-error-600">
@@ -470,9 +468,8 @@ export default function CreateClientProfile() {
                       type="text"
                       placeholder="Ej: Argentina"
                       maxLength={100}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                        errors.country ? 'border-error-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.country ? 'border-error-500' : 'border-gray-300'
+                        }`}
                     />
                     {errors.country && (
                       <p className="mt-1 text-sm text-error-600">
@@ -492,9 +489,8 @@ export default function CreateClientProfile() {
                     type="text"
                     placeholder="Ej: Argentina"
                     maxLength={100}
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.nationality ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.nationality ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.nationality && (
                     <p className="mt-1 text-sm text-error-600">
@@ -512,9 +508,8 @@ export default function CreateClientProfile() {
                     {...register('observations')}
                     rows={3}
                     placeholder="Notas adicionales sobre el cliente..."
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${
-                      errors.observations ? 'border-error-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 ${errors.observations ? 'border-error-500' : 'border-gray-300'
+                      }`}
                   />
                   {errors.observations && (
                     <p className="mt-1 text-sm text-error-600">

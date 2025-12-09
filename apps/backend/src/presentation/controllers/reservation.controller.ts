@@ -159,6 +159,7 @@ export class ReservationController {
   async createReservation(
     @Body() body: CreateReservationRequestDto,
     @Headers('x-idempotency-key') idempotencyKey?: string,
+    @Req() req?: RequestWithUser,
   ) {
     const dto = new CreateReservationDto();
     dto.clientId = body.clientId;
@@ -169,7 +170,13 @@ export class ReservationController {
     dto.notifyBySMS = body.notifyBySMS;
     dto.idempotencyKey = body.idempotencyKey || idempotencyKey || undefined;
 
-    const result = await this.createReservationUseCase.execute(dto);
+    const result = await this.createReservationUseCase.execute(dto, {
+      userId: req?.user?.id,
+      username: req?.user?.username || 'system',
+      system: 'ADMIN_PANEL',
+      ipAddress: req?.ip,
+      userAgent: req?.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -241,8 +248,15 @@ export class ReservationController {
   async cancelReservation(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CancelReservationDto,
+    @Req() req?: RequestWithUser,
   ) {
-    await this.cancelReservationUseCase.execute(id, dto);
+    await this.cancelReservationUseCase.execute(id, dto, {
+      userId: req?.user?.id,
+      username: req?.user?.username || 'system',
+      system: 'ADMIN_PANEL',
+      ipAddress: req?.ip,
+      userAgent: req?.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -266,9 +280,16 @@ export class ReservationController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateReservationDto,
     @Headers('x-expected-version') expectedVersion?: string,
+    @Req() req?: RequestWithUser,
   ) {
     const version = expectedVersion ? parseInt(expectedVersion, 10) : undefined;
-    await this.updateReservationDatesUseCase.execute(id, dto, version);
+    await this.updateReservationDatesUseCase.execute(id, dto, version, {
+      userId: req?.user?.id,
+      username: req?.user?.username || 'system',
+      system: 'ADMIN_PANEL',
+      ipAddress: req?.ip,
+      userAgent: req?.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -289,7 +310,13 @@ export class ReservationController {
   ) {
     const userId = request.user.id;
 
-    await this.performCheckInUseCase.execute(id, userId, dto);
+    await this.performCheckInUseCase.execute(id, userId, dto, {
+      userId: request.user.id,
+      username: request.user.username,
+      system: 'ADMIN_PANEL',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
 
     return {
       success: true,
@@ -310,7 +337,13 @@ export class ReservationController {
   ) {
     const userId = request.user.id;
 
-    await this.performCheckOutUseCase.execute(id, userId, dto);
+    await this.performCheckOutUseCase.execute(id, userId, dto, {
+      userId: request.user.id,
+      username: request.user.username,
+      system: 'ADMIN_PANEL',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'],
+    });
 
     return {
       success: true,

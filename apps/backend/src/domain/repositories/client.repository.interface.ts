@@ -11,4 +11,6 @@ export interface IClientRepository {
   delete(id: number): Promise<void>;
   findAll(): Promise<Client[]>;
   findByDni(dni: string): Promise<Client | null>;
+  findByPasswordResetToken(token: string): Promise<Client | null>;
+  findByIdWithRelations(id: number): Promise<Client | null>;
 }

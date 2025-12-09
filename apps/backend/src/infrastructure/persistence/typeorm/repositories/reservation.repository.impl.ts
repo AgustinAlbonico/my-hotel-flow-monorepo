@@ -2,14 +2,12 @@
  * TypeORM Reservation Repository Implementation
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,
   EntityManager,
   In,
-  LessThanOrEqual,
-  MoreThanOrEqual,
 } from 'typeorm';
 import type {
   IReservationRepository,
@@ -18,14 +16,17 @@ import type {
 import { Reservation, ReservationStatus } from '../../../../domain/entities/reservation.entity';
 import { ReservationOrmEntity } from '../entities/reservation.orm-entity';
 import { ReservationMapper } from '../mappers/reservation.mapper';
+import { toLocalDate, daysBetween } from '../../../utils/date.utils';
 
 @Injectable()
 export class TypeOrmReservationRepository implements IReservationRepository {
+  private readonly logger = new Logger(TypeOrmReservationRepository.name);
+
   constructor(
     @InjectRepository(ReservationOrmEntity)
     private readonly repository: Repository<ReservationOrmEntity>,
     private readonly mapper: ReservationMapper,
-  ) {}
+  ) { }
 
   async findById(id: number): Promise<Reservation | null> {
     const ormEntity = await this.repository.findOne({ where: { id } });
@@ -213,46 +214,13 @@ export class TypeOrmReservationRepository implements IReservationRepository {
       .skip((page - 1) * limit)
       .take(limit);
 
-    // Debug: en desarrollo imprimimos la consulta SQL y parámetros para
-    // verificar que el WHERE use DATE(reservation.checkIn) correctamente.
-    if (process.env.NODE_ENV !== 'production') {
-      try {
-        // getQueryAndParameters devuelve [query, parameters] en TypeORM
-        // Si la versión de TypeORM difiere, esto no debe romper en prod.
-        // Mostramos por console.debug para no interferir en stdout principal.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const qp: any = (queryBuilder as any).getQueryAndParameters
-          ? (queryBuilder as any).getQueryAndParameters()
-          : [(queryBuilder as any).getQuery(), (queryBuilder as any).getParameters()];
-        console.debug('[DEBUG] Reservation.findAll SQL:', qp[0]);
-        console.debug('[DEBUG] Reservation.findAll PARAMS:', qp[1]);
-      } catch (e) {
-        // no hacer nada en caso de error de introspección
-      }
-    }
-
     const [ormEntities, total] = await queryBuilder.getManyAndCount();
-
-    const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-    const toLocalDate = (value: Date | string): Date => {
-      if (value instanceof Date) return value;
-      const str = String(value).substring(0, 10);
-      const [yearStr, monthStr, dayStr] = str.split('-');
-      const year = parseInt(yearStr, 10);
-      const month = parseInt(monthStr, 10);
-      const day = parseInt(dayStr, 10);
-      return new Date(year, month - 1, day);
-    };
 
     const data: ReservationListItemView[] = ormEntities.map((entity) => {
       const checkIn = toLocalDate(entity.checkIn as unknown as Date | string);
       const checkOut = toLocalDate(entity.checkOut as unknown as Date | string);
 
-      const totalNights = Math.max(
-        1,
-        Math.ceil((checkOut.getTime() - checkIn.getTime()) / MS_PER_DAY),
-      );
+      const totalNights = Math.max(1, daysBetween(checkIn, checkOut));
 
       const pricePerNightRaw = entity.room?.roomType?.precioPorNoche;
       const pricePerNight =
@@ -286,23 +254,23 @@ export class TypeOrmReservationRepository implements IReservationRepository {
         totalPrice,
         client: entity.client
           ? {
-              id: entity.client.id,
-              dni: entity.client.dni,
-              firstName: entity.client.firstName,
-              lastName: entity.client.lastName,
-              email: entity.client.email,
-              phone: entity.client.phone,
-            }
+            id: entity.client.id,
+            dni: entity.client.dni,
+            firstName: entity.client.firstName,
+            lastName: entity.client.lastName,
+            email: entity.client.email,
+            phone: entity.client.phone,
+          }
           : null,
         room: entity.room
           ? {
-              id: entity.room.id,
-              numeroHabitacion: entity.room.numeroHabitacion,
-              roomTypeCode: entity.room.roomType?.code,
-              roomTypeName: entity.room.roomType?.name,
-              estado: entity.room.estado,
-              pricePerNight,
-            }
+            id: entity.room.id,
+            numeroHabitacion: entity.room.numeroHabitacion,
+            roomTypeCode: entity.room.roomType?.code,
+            roomTypeName: entity.room.roomType?.name,
+            estado: entity.room.estado,
+            pricePerNight,
+          }
           : null,
       };
     });
@@ -311,5 +279,20 @@ export class TypeOrmReservationRepository implements IReservationRepository {
       data,
       total,
     };
+  }
+
+  /**
+   * Buscar reservas confirmadas que son No-Show
+   * (estado CONFIRMED, fecha de checkout pasada, sin check-in realizado)
+   */
+  async findConfirmedNoShows(currentDate: Date): Promise<Reservation[]> {
+    const ormEntities = await this.repository
+      .createQueryBuilder('reservation')
+      .where('reservation.status = :status', { status: 'CONFIRMED' })
+      .andWhere('reservation.checkOut < :currentDate', { currentDate })
+      .andWhere('reservation.checkInData IS NULL')
+      .getMany();
+
+    return ormEntities.map((entity) => this.mapper.toDomain(entity)!);
   }
 }

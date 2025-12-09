@@ -15,11 +15,11 @@ export const AppDataSource = new DataSource({
   entities: [
     join(
       __dirname,
-      'infrastructure/persistence/typeorm/entities/**/*.orm-entity.ts',
+      '../../infrastructure/persistence/typeorm/entities/**/*.orm-entity.ts',
     ),
   ],
   migrations: [
-    join(__dirname, 'infrastructure/persistence/typeorm/migrations/**/*.ts'),
+    join(__dirname, '../../infrastructure/persistence/typeorm/migrations/**/*.ts'),
   ],
   synchronize: true, // NUNCA usar true en producción
   logging: process.env.DB_LOGGING === 'true',

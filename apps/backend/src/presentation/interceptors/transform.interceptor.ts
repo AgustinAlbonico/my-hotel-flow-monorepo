@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -46,17 +47,22 @@ export interface PaginationMeta {
  */
 @Injectable()
 export class TransformInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
+  implements NestInterceptor<T, ApiResponse<T> | StreamableFile>
 {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<ApiResponse<T>> {
+  ): Observable<ApiResponse<T> | StreamableFile> {
     const request = context.switchToHttp().getRequest();
     const requestId = request.headers['x-request-id'] || uuidv4();
 
     return next.handle().pipe(
       map((data) => {
+        // Si es un StreamableFile (descarga de archivos), no transformar
+        if (data instanceof StreamableFile) {
+          return data;
+        }
+
         // Si la respuesta ya tiene la estructura estándar, devolverla tal cual
         if (data && typeof data === 'object' && 'success' in data) {
           return data as ApiResponse<T>;

@@ -31,23 +31,23 @@ const variantConfig: Record<
   }
 > = {
   success: {
-    containerClass: 'bg-success-50 border-success-200 text-success-800',
-    iconClass: 'text-success-600',
+    containerClass: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800 text-success-800 dark:text-success-200',
+    iconClass: 'text-success-600 dark:text-success-400',
     icon: CheckCircle2,
   },
   warning: {
-    containerClass: 'bg-warning-50 border-warning-200 text-warning-800',
-    iconClass: 'text-warning-600',
+    containerClass: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800 text-warning-800 dark:text-warning-200',
+    iconClass: 'text-warning-600 dark:text-warning-400',
     icon: AlertTriangle,
   },
   error: {
-    containerClass: 'bg-error-50 border-error-200 text-error-800',
-    iconClass: 'text-error-600',
+    containerClass: 'bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800 text-error-800 dark:text-error-200',
+    iconClass: 'text-error-600 dark:text-error-400',
     icon: XCircle,
   },
   info: {
-    containerClass: 'bg-info-50 border-info-200 text-info-800',
-    iconClass: 'text-info-600',
+    containerClass: 'bg-info-50 dark:bg-info-900/20 border-info-200 dark:border-info-800 text-info-800 dark:text-info-200',
+    iconClass: 'text-info-600 dark:text-info-400',
     icon: Info,
   },
 };

@@ -40,7 +40,6 @@ export class TypeOrmRoomRepository implements IRoomRepository {
       where: { isActive: true },
       relations: ['roomType'],
     });
-    console.log('ORM Entities fetched in findAllActive:', ormEntities);
     return ormEntities
       .map((e) => this.mapper.toDomain(e))
       .filter((e): e is NonNullable<typeof e> => e !== null);
@@ -129,7 +128,7 @@ export class TypeOrmRoomRepository implements IRoomRepository {
             statuses: ['CONFIRMED', 'IN_PROGRESS'],
           })
           .andWhere(
-            '((:checkIn BETWEEN r.checkIn AND r.checkOut) OR (:checkOut BETWEEN r.checkIn AND r.checkOut) OR (r.checkIn BETWEEN :checkIn AND :checkOut))',
+            '(r.checkIn < :checkOut AND r.checkOut > :checkIn)',
             {
               checkIn: dateRange.startDate,
               checkOut: dateRange.endDate,

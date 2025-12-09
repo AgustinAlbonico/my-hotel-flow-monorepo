@@ -15,6 +15,7 @@ import {
 } from 'typeorm';
 import { ClientOrmEntity } from './client.orm-entity';
 import { RoomOrmEntity } from './room.orm-entity';
+import { UserOrmEntity } from './user.orm-entity';
 
 @Entity('reservations')
 export class ReservationOrmEntity {
@@ -58,6 +59,35 @@ export class ReservationOrmEntity {
   @Column({ type: 'jsonb', nullable: true })
   checkOutData: any | null;
 
+  // Campos de auditoría
+  @Column({ nullable: true })
+  createdByUserId: number | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  createdByUsername: string | null;
+
+  @Column({ type: 'varchar', length: 50, default: 'WEB_BOOKING' })
+  createdBySystem: string;
+
+  @Column({ nullable: true })
+  updatedByUserId: number | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  updatedByUsername: string | null;
+
+  // Campos inmutables para trazabilidad
+  @Column({ type: 'date', nullable: true })
+  originalCheckIn: Date | null;
+
+  @Column({ type: 'date', nullable: true })
+  originalCheckOut: Date | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  originalAmount: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  currentAmount: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -71,4 +101,12 @@ export class ReservationOrmEntity {
   @ManyToOne(() => RoomOrmEntity, (room) => room.reservations, { eager: true })
   @JoinColumn({ name: 'roomId' })
   room: RoomOrmEntity;
+
+  @ManyToOne(() => UserOrmEntity, { nullable: true })
+  @JoinColumn({ name: 'createdByUserId' })
+  createdByUser: UserOrmEntity | null;
+
+  @ManyToOne(() => UserOrmEntity, { nullable: true })
+  @JoinColumn({ name: 'updatedByUserId' })
+  updatedByUser: UserOrmEntity | null;
 }

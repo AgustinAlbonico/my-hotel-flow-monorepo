@@ -25,36 +25,19 @@ export class UserMapper {
       return null;
     }
 
-    console.log(
-      '🔄 UserMapper.toDomain - Mapeando usuario:',
-      ormEntity.username,
-    );
-    console.log(`   Groups ORM: ${ormEntity.groups?.length || 0}`);
-    console.log(`   Actions ORM: ${ormEntity.actions?.length || 0}`);
-
     const email = Email.create(ormEntity.email);
 
     const groups = ormEntity.groups
       ? ormEntity.groups
-          .map((g) => {
-            console.log(
-              `   → Mapeando grupo: ${g.key} (${g.actions?.length || 0} actions)`,
-            );
-            return this.groupMapper.toDomain(g);
-          })
+          .map((g) => this.groupMapper.toDomain(g))
           .filter((g): g is NonNullable<typeof g> => g !== null)
       : [];
-
-    console.log(`   Groups mapeados: ${groups.length}`);
 
     const actions = ormEntity.actions
       ? ormEntity.actions
           .map((a) => this.actionMapper.toDomain(a))
           .filter((a): a is NonNullable<typeof a> => a !== null)
       : [];
-
-    console.log(`   Actions mapeadas: ${actions.length}`);
-    console.log(`   ✅ User mapeado completamente\n`);
 
     return User.reconstruct(
       ormEntity.id,

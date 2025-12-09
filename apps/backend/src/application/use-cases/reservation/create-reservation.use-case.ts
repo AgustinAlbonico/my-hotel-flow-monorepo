@@ -1,4 +1,4 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { IClientRepository } from '../../../domain/repositories/client.repository.interface';
 import type { IRoomRepository } from '../../../domain/repositories/room.repository.interface';
 import type { IReservationRepository } from '../../../domain/repositories/reservation.repository.interface';
@@ -6,15 +6,27 @@ import { Reservation } from '../../../domain/entities/reservation.entity';
 import { DateRange } from '../../../domain/value-objects/date-range.value-object';
 import { CreateReservationDto } from '../../dtos/reservation/create-reservation.dto';
 import { ReservationCreatedDto } from '../../dtos/reservation/reservation-created.dto';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+import { AuditActionType } from '../../../infrastructure/persistence/typeorm/entities/reservation-audit-log.orm-entity';
+import { parseLocalDate } from '../../../infrastructure/utils/date.utils';
+import {
+  ClientNotFoundForReservationException,
+  ClientInactiveException,
+  ClientHasOutstandingDebtException,
+  ClientHasActiveReservationException,
+  RoomNotFoundForReservationException,
+  RoomInactiveException,
+  MaxPendingReservationsException,
+  RoomNotAvailableException,
+} from '../../../domain/exceptions/reservation.exceptions';
 
-// Helper interno: parsear una fecha YYYY-MM-DD como fecha local (sin desfasajes por zona horaria)
-const parseLocalDate = (dateStr: string): Date => {
-  const [yearStr, monthStr, dayStr] = dateStr.substring(0, 10).split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  const day = parseInt(dayStr, 10);
-  return new Date(year, month - 1, day);
-};
+export interface AuditContext {
+  userId?: number;
+  username: string;
+  system: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 /**
  * CreateReservationUseCase
@@ -24,6 +36,8 @@ const parseLocalDate = (dateStr: string): Date => {
  */
 @Injectable()
 export class CreateReservationUseCase {
+  private readonly logger = new Logger(CreateReservationUseCase.name);
+
   constructor(
     @Inject('IClientRepository')
     private readonly clientRepository: IClientRepository,
@@ -31,26 +45,28 @@ export class CreateReservationUseCase {
     private readonly roomRepository: IRoomRepository,
     @Inject('IReservationRepository')
     private readonly reservationRepository: IReservationRepository,
+    private readonly auditService: AuditService,
     @Inject('INotificationService')
     private readonly notificationService?: import('../../../domain/services/notification.service.interface').INotificationService,
-  ) {}
+  ) { }
 
-  async execute(dto: CreateReservationDto): Promise<ReservationCreatedDto> {
+  async execute(
+    dto: CreateReservationDto,
+    auditContext?: AuditContext,
+  ): Promise<ReservationCreatedDto> {
     // 1. Validar que el cliente existe
     const client = await this.clientRepository.findById(dto.clientId);
     if (!client) {
-      throw new Error('Cliente no encontrado');
+      throw new ClientNotFoundForReservationException(dto.clientId);
     }
 
     if (!client.isActive) {
-      throw new Error('El cliente está inactivo');
+      throw new ClientInactiveException(dto.clientId);
     }
 
     // 1.1. Validar que el cliente no tenga deudas pendientes
     if (client.hasOutstandingDebt()) {
-      throw new Error(
-        `No se puede crear la reserva. El cliente tiene un saldo pendiente de $${client.outstandingBalance.toFixed(2)}. Por favor, regularice la situación antes de realizar una nueva reserva.`,
-      );
+      throw new ClientHasOutstandingDebtException(dto.clientId, client.outstandingBalance);
     }
 
     // 1.2. Validar que el cliente no tenga reservas activas (CONFIRMED / IN_PROGRESS)
@@ -59,31 +75,28 @@ export class CreateReservationUseCase {
         dto.clientId,
       );
     if (hasActiveReservation) {
-      throw new BadRequestException(
-        'El cliente ya tiene una reserva activa. No se puede crear otra hasta que se complete o cancele la actual.',
-      );
+      throw new ClientHasActiveReservationException(dto.clientId);
     }
 
     // 2. Validar que la habitación existe
     const room = await this.roomRepository.findById(dto.roomId);
     if (!room) {
-      throw new Error('Habitación no encontrada');
+      throw new RoomNotFoundForReservationException(dto.roomId);
     }
 
     if (!room.isActive) {
-      throw new Error('La habitación está inactiva');
+      throw new RoomInactiveException(dto.roomId);
     }
 
     // 3. Crear DateRange para validar fechas (interpretando siempre fechas locales)
     const dateRange = DateRange.fromStrings(dto.checkIn, dto.checkOut);
 
     // 4. Verificar límite de reservas pendientes por cliente (R-102)
+    const MAX_PENDING_RESERVATIONS = 3;
     const pendingReservations =
       await this.reservationRepository.countPendingByClient(dto.clientId);
-    if (pendingReservations >= 3) {
-      throw new Error(
-        'Has alcanzado el límite de 3 reservas pendientes. Por favor, completa o cancela alguna antes de crear una nueva.',
-      );
+    if (pendingReservations >= MAX_PENDING_RESERVATIONS) {
+      throw new MaxPendingReservationsException(dto.clientId, MAX_PENDING_RESERVATIONS);
     }
 
     // 5. Verificar superposición de reservas (prevención de overbooking)
@@ -98,9 +111,7 @@ export class CreateReservationUseCase {
       );
 
     if (overlappingReservations.length > 0) {
-      throw new Error(
-        'La habitación no está disponible para las fechas seleccionadas. Ya existe una reserva confirmada.',
-      );
+      throw new RoomNotAvailableException(dto.roomId, dto.checkIn, dto.checkOut);
     }
 
     // 6. Verificar disponibilidad de la habitación (validación adicional)
@@ -110,18 +121,20 @@ export class CreateReservationUseCase {
     );
 
     if (!isAvailable) {
-      throw new Error(
-        'La habitación no está disponible para las fechas seleccionadas',
-      );
+      throw new RoomNotAvailableException(dto.roomId, dto.checkIn, dto.checkOut);
     }
 
     // 7. Idempotencia: si viene idempotencyKey, intentar reutilizar reserva existente
     let reservation =
       dto.idempotencyKey && dto.idempotencyKey.trim().length > 0
         ? await this.reservationRepository.findByIdempotencyKey(
-            dto.idempotencyKey.trim(),
-          )
+          dto.idempotencyKey.trim(),
+        )
         : null;
+
+    // 8. Calcular datos adicionales antes de crear la reserva
+    const cantidadNoches = dateRange.getNights();
+    const precioTotal = room.calculateTotalPrice(cantidadNoches);
 
     if (!reservation) {
       // Crear la reserva usando el factory method de la entidad
@@ -135,13 +148,30 @@ export class CreateReservationUseCase {
 
       // Persistir la reserva
       reservation = await this.reservationRepository.save(reservation);
+
+      // Registrar en auditoría
+      if (auditContext) {
+        await this.auditService.logReservationChange({
+          reservationId: reservation.id,
+          actionType: AuditActionType.CREATE,
+          userId: auditContext.userId,
+          username: auditContext.username,
+          system: auditContext.system,
+          ipAddress: auditContext.ipAddress,
+          userAgent: auditContext.userAgent,
+          metadata: {
+            clientId: dto.clientId,
+            roomId: dto.roomId,
+            checkIn: dto.checkIn,
+            checkOut: dto.checkOut,
+            nights: cantidadNoches,
+            totalPrice: precioTotal,
+          },
+        });
+      }
     }
 
-    // 8. Calcular datos adicionales
-    const cantidadNoches = dateRange.getNights();
-    const precioTotal = room.calculateTotalPrice(cantidadNoches);
-
-    // 9. TODO: Enviar notificaciones si están habilitadas
+    // 9. Enviar notificaciones si están habilitadas
     if (!reservation || !dto.notifyByEmail || !this.notificationService) {
       // En el caso idempotente, no reenviamos notificaciones
       // ni si no se solicitó notifyByEmail
@@ -152,6 +182,7 @@ export class CreateReservationUseCase {
           {
             customer_name: `${client.firstName} ${client.lastName}`,
             reservation_id: reservation.id,
+            reservation_code: reservation.code,
             hotel_name: room.roomType?.name || 'Hotel',
             room_type: room.roomType?.name || 'Habitación',
             checkin_date: dto.checkIn,
@@ -164,13 +195,12 @@ export class CreateReservationUseCase {
             support_email:
               process.env.SUPPORT_EMAIL || 'soporte@myhotelflow.example',
             year: new Date().getFullYear(),
+            logo_url: 'https://i.imgur.com/nvcCGnI.jpeg',
           },
         );
       } catch (err) {
         // Registrar y continuar (no bloquear la creación de reserva por fallo de notificación)
-        // ideal: enviar a dead-letter / retry queue
-        // tslint:disable-next-line:no-console
-        console.warn('Error enviando email de reserva:', err);
+        this.logger.warn('Error enviando email de reserva', err instanceof Error ? err.stack : String(err));
       }
     }
 
@@ -184,8 +214,7 @@ export class CreateReservationUseCase {
           smsMessage,
         );
       } catch (err) {
-        // tslint:disable-next-line:no-console
-        console.warn('Error enviando SMS de reserva:', err);
+        this.logger.warn('Error enviando SMS de reserva', err instanceof Error ? err.stack : String(err));
       }
     }
 

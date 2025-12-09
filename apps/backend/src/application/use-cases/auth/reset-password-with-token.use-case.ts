@@ -1,5 +1,6 @@
 import { Inject, Injectable, BadRequestException } from '@nestjs/common';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
+import type { IClientRepository } from '../../../domain/repositories/client.repository.interface';
 import type { IHashService } from '../../../domain/services/hash-service.interface';
 import { ResetPasswordWithTokenDto } from '../../dtos/auth/reset-password-with-token.dto';
 
@@ -8,21 +9,18 @@ import { ResetPasswordWithTokenDto } from '../../dtos/auth/reset-password-with-t
  *
  * Completes the password reset process using the token sent via email.
  * Validates the token, sets new password, and unlocks the account.
- *
- * Security considerations:
- * - Token is single-use (cleared after successful reset)
- * - Token expires after 1 hour
- * - Unlocks account if it was locked
- * - Hashes new password using Argon2id
+ * Supports both Users (staff) and Clients (guests).
  */
 @Injectable()
 export class ResetPasswordWithTokenUseCase {
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
+    @Inject('IClientRepository')
+    private readonly clientRepository: IClientRepository,
     @Inject('IHashService')
     private readonly hashService: IHashService,
-  ) {}
+  ) { }
 
   /**
    * Execute password reset with token
@@ -32,32 +30,51 @@ export class ResetPasswordWithTokenUseCase {
    */
   async execute(dto: ResetPasswordWithTokenDto): Promise<void> {
     // 1. Find user by reset token
-    const user = await this.userRepository.findByPasswordResetToken(dto.token);
+    let user = await this.userRepository.findByPasswordResetToken(dto.token);
+    let isClient = false;
+    let entity: any = user;
 
+    // 2. If not found in users, try clients
     if (!user) {
+      const client = await this.clientRepository.findByPasswordResetToken(dto.token);
+      if (client) {
+        isClient = true;
+        entity = client;
+      }
+    }
+
+    if (!entity) {
       throw new BadRequestException('Invalid or expired password reset token');
     }
 
-    // 2. Validate token expiration
-    if (!user.validatePasswordResetToken(dto.token)) {
+    // 3. Validate token expiration
+    if (!entity.validatePasswordResetToken(dto.token)) {
       throw new BadRequestException('Invalid or expired password reset token');
     }
 
-    // 3. Hash new password
+    // 4. Hash new password
     const newPasswordHash = await this.hashService.hash(dto.newPassword);
 
-    // 4. Update password
-    user.updatePasswordHash(newPasswordHash);
-
-    // 5. Clear reset token (single-use token)
-    user.clearPasswordResetToken();
-
-    // 6. Unlock account if it was locked
-    if (user.isLocked()) {
-      user.unlock();
+    // 5. Update password
+    if (isClient) {
+      entity.setPassword(newPasswordHash);
+    } else {
+      entity.updatePasswordHash(newPasswordHash);
     }
 
-    // 7. Save updated user
-    await this.userRepository.save(user);
+    // 6. Clear reset token (single-use token)
+    entity.clearPasswordResetToken();
+
+    // 7. Unlock account if it was locked (Only for Users)
+    if (!isClient && entity.isLocked && entity.isLocked()) {
+      entity.unlock();
+    }
+
+    // 8. Save updated entity
+    if (isClient) {
+      await this.clientRepository.save(entity);
+    } else {
+      await this.userRepository.save(entity);
+    }
   }
 }

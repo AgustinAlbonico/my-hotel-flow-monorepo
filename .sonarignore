@@ -1,0 +1,81 @@
+# SonarQube Ignore File
+# Files and directories that should never be analyzed
+
+# Dependencies
+node_modules/
+**/node_modules/**
+
+# Build outputs
+dist/
+build/
+**/dist/**
+**/build/**
+out/
+
+# Coverage reports
+coverage/
+**/coverage/**
+.nyc_output/
+
+# TypeScript
+*.d.ts
+!src/**/*.d.ts
+
+# Configuration files
+*.config.js
+*.config.ts
+*.config.mjs
+.eslintrc.*
+.prettierrc.*
+jest.config.*
+vite.config.*
+tailwind.config.*
+postcss.config.*
+
+# Environment files
+.env*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (optional - uncomment if you don't want to analyze docs)
+# *.md
+# docs/
+
+# Assets
+**/public/**
+**/assets/**
+**/uploads/**
+
+# Scripts
+scripts/
+**/scripts/**
+
+# Test files (already excluded in sonar-project.properties but double-check)
+**/*.spec.ts
+**/*.test.ts
+**/*.spec.tsx
+**/*.test.tsx
+**/*.e2e-spec.ts

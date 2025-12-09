@@ -26,6 +26,13 @@ export interface INotificationService {
   ): Promise<void>;
 
   /**
+   * Enviar email de recuperación de contraseña
+   * @param to - dirección de destino
+   * @param variables - variables para la plantilla (debe incluir reset_link, username)
+   */
+  sendPasswordReset(to: string, variables: IEmailVariables): Promise<void>;
+
+  /**
    * Enviar SMS (implementación opcional)
    * @param to - número destino en formato E.164
    * @param message - texto del SMS

@@ -188,7 +188,7 @@ export const CheckInConfirmModal: React.FC<CheckInConfirmModalProps> = ({
           </div>
           <div className="pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">Código de Reserva</p>
-            <p className="font-mono font-semibold text-gray-900">{reservation._code}</p>
+            <p className="font-mono font-semibold text-gray-900">{reservation.code}</p>
           </div>
           <div className="pt-4 border-t border-gray-200 flex items-center justify-between">
             <div>

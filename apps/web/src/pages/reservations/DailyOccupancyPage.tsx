@@ -14,10 +14,11 @@ import {
   Loader2,
   Percent,
 } from 'lucide-react';
+import { getTodayLocalDate } from '@/utils/date.utils';
 
 export const DailyOccupancyPage: React.FC = () => {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocalDate();
   const [date, setDate] = useState(today);
 
   const { data, isLoading, isError, error } = useQuery({

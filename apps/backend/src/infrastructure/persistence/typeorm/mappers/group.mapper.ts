@@ -3,13 +3,15 @@
  * Mapea entre la entidad de dominio Group y la entidad ORM GroupOrmEntity
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Group } from '../../../../domain/entities/group.entity';
 import { GroupOrmEntity } from '../entities/group.orm-entity';
 import { ActionMapper } from './action.mapper';
 
 @Injectable()
 export class GroupMapper {
+  private readonly logger = new Logger(GroupMapper.name);
+
   constructor(private readonly actionMapper: ActionMapper) {}
 
   /**
@@ -20,31 +22,23 @@ export class GroupMapper {
       return null;
     }
 
-    console.log(`     🔄 GroupMapper.toDomain - Grupo: ${ormEntity.key}`);
-    console.log(`        Actions ORM: ${ormEntity.actions?.length || 0}`);
-    console.log(`        Children ORM: ${ormEntity.children?.length || 0}`);
-
     const actions = ormEntity.actions
       ? ormEntity.actions
           .map((a) => {
             const mapped = this.actionMapper.toDomain(a);
             if (!mapped) {
-              console.log(`        ⚠️  Action ${a.id} no se pudo mapear`);
+              this.logger.warn(`Action ${a.id} no se pudo mapear en grupo ${ormEntity.key}`);
             }
             return mapped;
           })
           .filter((a): a is NonNullable<typeof a> => a !== null)
       : [];
 
-    console.log(`        Actions mapeadas: ${actions.length}`);
-
     const children = ormEntity.children
       ? ormEntity.children
           .map((c) => this.toDomain(c))
           .filter((c): c is NonNullable<typeof c> => c !== null)
       : [];
-
-    console.log(`        Children mapeados: ${children.length}`);
 
     return Group.reconstruct(
       ormEntity.id,

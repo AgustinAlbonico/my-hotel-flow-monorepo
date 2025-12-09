@@ -41,6 +41,9 @@ export class PaymentOrmEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  @Column({ name: 'receipt_path', type: 'varchar', length: 500, nullable: true })
+  receiptPath: string | null;
+
   @Column({ name: 'paid_at', type: 'timestamp' })
   paidAt: Date;
 

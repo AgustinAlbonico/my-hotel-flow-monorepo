@@ -90,12 +90,13 @@ export const CheckInPage: React.FC = () => {
       setSelectedReservation(null);
       setSearchTerm('');
       setSearchResults(null);
-    } catch (error: { response?: { data?: { message?: string } } }) {
+    } catch (error: unknown) {
+      const apiError = error as { response?: { data?: { message?: string } } };
       showToast({
         type: 'error',
         title: 'Error en check-in',
         message:
-          error.response?.data?.message ||
+          apiError.response?.data?.message ||
           'No se pudo completar el check-in',
       });
     }
@@ -106,11 +107,35 @@ export const CheckInPage: React.FC = () => {
     setSearchResults(null);
   };
 
+  // Filtrar reservas donde la fecha de hoy esté dentro del rango de check-in y check-out
+  const filterReservationsByDateRange = (reservations: CheckInReservation[]): CheckInReservation[] => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar a medianoche para comparación de fechas
+
+    const filtered = reservations.filter((reservation) => {
+      const checkInDate = new Date(reservation.checkIn);
+      const checkOutDate = new Date(reservation.checkOut);
+      
+      // Normalizar fechas a medianoche
+      checkInDate.setHours(0, 0, 0, 0);
+      checkOutDate.setHours(0, 0, 0, 0);
+
+      // Solo mostrar si hoy es el día de check-in o posterior (hasta antes del checkout)
+      // Esto excluye reservas futuras
+      const shouldShow = today >= checkInDate && today < checkOutDate;
+
+      return shouldShow;
+    });
+
+    return filtered;
+  };
+
   // Determinar qué reservas mostrar
-  const displayReservations: CheckInReservation[] =
+  const displayReservations: CheckInReservation[] = filterReservationsByDateRange(
     searchResults !== null
       ? searchResults
-      : ((allReservations as unknown as CheckInReservation[] | undefined) ?? []);
+      : ((allReservations as unknown as CheckInReservation[] | undefined) ?? [])
+  );
 
   if (isLoading) {
     return (
@@ -215,12 +240,12 @@ export const CheckInPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
           <Calendar className="mx-auto text-gray-400 mb-4" size={64} />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {searchTerm ? 'No se encontraron reservas' : 'No hay reservas pendientes de check-in'}
+            {searchTerm ? 'No se encontraron reservas' : 'No hay reservas para check-in hoy'}
           </h3>
           <p className="text-gray-600 mb-6">
             {searchTerm
               ? 'Intenta con otro término de búsqueda (código, DNI o nombre)'
-              : 'No hay reservas confirmadas esperando check-in.'}
+              : 'No hay reservas confirmadas que deban iniciar hoy o que ya deberían haber comenzado.'}
           </p>
           <button
             onClick={() => navigate('/reservations')}
@@ -277,7 +302,7 @@ export const CheckInPage: React.FC = () => {
                               Hab. {reservation.room.numeroHabitacion}
                             </p>
                             <p className="text-xs text-gray-600 truncate">
-                              {reservation.room.tipoNombre}
+                              {reservation.room.roomTypeName}
                             </p>
                           </>
                         ) : (

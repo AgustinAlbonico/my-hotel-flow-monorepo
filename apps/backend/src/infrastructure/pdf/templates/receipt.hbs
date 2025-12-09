@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Comprobante de Pago - My Hotel Flow</title>
+	<style type="text/css">
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			font-size: 13px;
+			background: white;
+			padding: 20px;
+		}
+		.bill-container {
+			width: 750px;
+			margin: 0 auto;
+			border-collapse: collapse;
+		}
+		.bill-emitter-row td {
+			width: 50%;
+			border-bottom: 1px solid #000;
+			padding-top: 10px;
+			padding-left: 10px;
+			vertical-align: top;
+		}
+		.bill-emitter-row {
+			position: relative;
+		}
+		.bill-emitter-row td:nth-child(2) {
+			padding-left: 60px;
+		}
+		.bill-emitter-row td:nth-child(1) {
+			padding-right: 60px;
+		}
+		.bill-type {
+			border: 1px solid #000;
+			background: white;
+			width: 60px;
+			height: 50px;
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: -1px;
+			margin: auto;
+			text-align: center;
+			font-size: 40px;
+			font-weight: 600;
+			line-height: 50px;
+		}
+		.text-lg {
+			font-size: 24px;
+			font-weight: 600;
+			margin-bottom: 10px;
+		}
+		.text-center {
+			text-align: center;
+		}
+		.col-2 {
+			width: 16.66666667%;
+			float: left;
+		}
+		.col-3 {
+			width: 25%;
+			float: left;
+		}
+		.col-4 {
+			width: 33.3333333%;
+			float: left;
+		}
+		.col-5 {
+			width: 41.66666667%;
+			float: left;
+		}
+		.col-6 {
+			width: 50%;
+			float: left;
+		}
+		.col-8 {
+			width: 66.66666667%;
+			float: left;
+		}
+		.col-10 {
+			width: 83.33333333%;
+			float: left;
+		}
+		.row {
+			overflow: hidden;
+		}
+		.margin-b-0 {
+			margin-bottom: 0px;
+		}
+		.margin-b-10 {
+			margin-bottom: 10px;
+		}
+		.bill-row td {
+			padding-top: 5px;
+		}
+		.bill-row td > div {
+			border-top: 1px solid #000;
+			border-bottom: 1px solid #000;
+			margin: 0 -1px 0 -2px;
+			padding: 10px 10px 13px 10px;
+		}
+		.row-details table {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		.row-details td > div {
+			border: 0;
+			margin: 0 -1px 0 -2px;
+			padding: 0;
+		}
+		.row-details table td {
+			padding: 5px;
+		}
+		.row-details table tr:nth-child(1) {
+			border-top: 1px solid #000;
+			border-bottom: 1px solid #000;
+			background: #c0c0c0;
+			font-weight: bold;
+			text-align: center;
+		}
+		.row-details table tr + tr {
+			border-top: 1px solid #c0c0c0;
+		}
+		.text-right {
+			text-align: right;
+		}
+		.total-row td > div {
+			border-width: 2px;
+		}
+		p {
+			margin: 5px 0;
+		}
+		strong {
+			font-weight: 600;
+		}
+		.payment-badge {
+			display: inline-block;
+			background: #10b981;
+			color: white;
+			padding: 4px 12px;
+			border-radius: 4px;
+			font-size: 12px;
+			font-weight: 600;
+			margin-top: 5px;
+		}
+	</style>
+</head>
+<body>
+	<table class="bill-container">
+		<!-- DATOS DEL EMISOR -->
+		<tr class="bill-emitter-row">
+			<td>
+				<div class="bill-type">{{receipt.type}}</div>
+				<div class="text-lg text-center">{{hotel.name}}</div>
+				<p><strong>Razón social:</strong> {{hotel.name}}</p>
+				<p><strong>Domicilio Comercial:</strong> {{hotel.address}}</p>
+				<p><strong>Condición Frente al IVA:</strong> Responsable Inscripto</p>
+			</td>
+			<td>
+				<div>
+					<div class="text-lg">Comprobante de Pago</div>
+					<div class="row">
+						<p class="col-6 margin-b-0">
+							<strong>Punto de Venta:</strong> 0001
+						</p>
+						<p class="col-6 margin-b-0">
+							<strong>Comp. Nro:</strong> {{receipt.number}}
+						</p>
+					</div>
+					<p><strong>Fecha de Emisión:</strong> {{receipt.date}}</p>
+					<p><strong>CUIT:</strong> {{hotel.cuit}}</p>
+					{{#if receipt.cae}}
+					<p><strong>CAE:</strong> {{receipt.cae}}</p>
+					<p><strong>Vto. CAE:</strong> {{receipt.caeExpiration}}</p>
+					{{/if}}
+				</div>
+			</td>
+		</tr>
+
+		<!-- PERIODO DE ESTADIA -->
+		<tr class="bill-row">
+			<td colspan="2">
+				<div class="row">
+					<p class="col-4 margin-b-0">
+						<strong>Check-in:</strong> {{reservation.checkIn}}
+					</p>
+					<p class="col-3 margin-b-0">
+						<strong>Check-out:</strong> {{reservation.checkOut}}
+					</p>
+					<p class="col-5 margin-b-0">
+						<strong>Habitación:</strong> {{reservation.roomNumber}} - {{reservation.roomType}}
+					</p>
+				</div>
+			</td>
+		</tr>
+
+		<!-- DATOS DEL CLIENTE -->
+		<tr class="bill-row">
+			<td colspan="2">
+				<div>
+					<div class="row">
+						<p class="col-4 margin-b-0">
+							<strong>DNI/CUIT:</strong> {{client.dni}}
+						</p>
+						<p class="col-8 margin-b-0">
+							<strong>Apellido y Nombre:</strong> {{client.name}}
+						</p>
+					</div>
+					<div class="row">
+						<p class="col-6 margin-b-0">
+							<strong>Condición IVA:</strong> {{client.taxCondition}}
+						</p>
+						<p class="col-6 margin-b-0">
+							<strong>Domicilio:</strong> {{client.address}}
+						</p>
+					</div>
+					<div class="row">
+						<p class="col-6 margin-b-0">
+							<strong>Email:</strong> {{client.email}}
+						</p>
+						<p class="col-6 margin-b-0">
+							<strong>Teléfono:</strong> {{client.phone}}
+						</p>
+					</div>
+				</div>
+			</td>
+		</tr>
+
+		<!-- DETALLES DE SERVICIOS -->
+		<tr class="bill-row row-details">
+			<td colspan="2">
+				<div>
+					<table>
+						<tr>
+							<td>Código</td>
+							<td>Concepto / Servicio</td>
+							<td>Cantidad</td>
+							<td>Precio Unit.</td>
+							<td>% Desc.</td>
+							<td>Subtotal</td>
+						</tr>
+						{{#each items}}
+						<tr>
+							<td>{{code}}</td>
+							<td>{{description}}</td>
+							<td>{{quantity}}</td>
+							<td>${{unitPrice}}</td>
+							<td>{{discount}}%</td>
+							<td>${{subtotal}}</td>
+						</tr>
+						{{/each}}
+					</table>
+				</div>
+			</td>
+		</tr>
+
+		<!-- TOTALES -->
+		<tr class="bill-row total-row">
+			<td colspan="2">
+				<div>
+					<div class="row text-right">
+						<p class="col-10 margin-b-0"><strong>Subtotal:</strong></p>
+						<p class="col-2 margin-b-0"><strong>${{totals.subtotal}}</strong></p>
+					</div>
+					{{#if totals.discount}}
+					<div class="row text-right">
+						<p class="col-10 margin-b-0"><strong>Descuentos:</strong></p>
+						<p class="col-2 margin-b-0"><strong>-${{totals.discount}}</strong></p>
+					</div>
+					{{/if}}
+					{{#if totals.iva}}
+					<div class="row text-right">
+						<p class="col-10 margin-b-0"><strong>IVA (10.5%):</strong></p>
+						<p class="col-2 margin-b-0"><strong>${{totals.iva}}</strong></p>
+					</div>
+					{{/if}}
+					<div class="row text-right">
+						<p class="col-10 margin-b-0"><strong style="font-size: 16px;">TOTAL:</strong></p>
+						<p class="col-2 margin-b-0"><strong style="font-size: 16px;">${{totals.total}}</strong></p>
+					</div>
+				</div>
+			</td>
+		</tr>
+
+		<!-- INFORMACIÓN DEL PAGO -->
+		<tr class="bill-row row-details">
+			<td colspan="2">
+				<div style="padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px;">
+					<div class="row">
+						<div class="col-6">
+							<p><strong>Método de Pago:</strong> {{payment.method}}</p>
+							<p><strong>Fecha de Pago:</strong> {{payment.date}}</p>
+							{{#if payment.reference}}
+							<p><strong>Referencia:</strong> {{payment.reference}}</p>
+							{{/if}}
+						</div>
+						<div class="col-6 text-right">
+							<p><strong>Monto Pagado:</strong></p>
+							<p style="font-size: 24px; color: #10b981; font-weight: 700;">${{payment.amount}}</p>
+							<span class="payment-badge">✓ PAGO CONFIRMADO</span>
+						</div>
+					</div>
+				</div>
+			</td>
+		</tr>
+
+		<!-- FOOTER -->
+		<tr class="bill-row row-details">
+			<td colspan="2">
+				<div style="padding: 10px 0;">
+					<div class="row text-center margin-b-10">
+						<strong style="font-size: 14px;">¡Gracias por elegirnos!</strong>
+					</div>
+					<div class="row text-center margin-b-10">
+						<span>Reserva Nro: #{{reservation.id}} | Comprobante de Pago #{{payment.id}}</span>
+					</div>
+					<div class="row text-center margin-b-10">
+						<span>Generado con My Hotel Flow - Sistema de Gestión Hotelera</span>
+					</div>
+					<div class="row text-center">
+						<span style="font-size: 11px;">{{hotel.email}} | {{hotel.phone}}</span>
+					</div>
+				</div>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>

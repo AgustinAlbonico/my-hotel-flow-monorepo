@@ -19,6 +19,9 @@ import { InvoiceOrmEntity } from './entities/invoice.orm-entity';
 import { PaymentOrmEntity } from './entities/payment.orm-entity';
 import { AccountMovementOrmEntity } from './entities/account-movement.orm-entity';
 import { MercadoPagoPaymentOrmEntity } from './entities/mercadopago-payment.orm-entity';
+import { ReservationAuditLogOrmEntity } from './entities/reservation-audit-log.orm-entity';
+import { UserSessionOrmEntity } from './entities/user-session.orm-entity';
+import { UserActivityLogOrmEntity } from './entities/user-activity-log.orm-entity';
 
 @Module({
   imports: [
@@ -46,6 +49,10 @@ import { MercadoPagoPaymentOrmEntity } from './entities/mercadopago-payment.orm-
           PaymentOrmEntity,
           AccountMovementOrmEntity,
           MercadoPagoPaymentOrmEntity,
+          // Audit
+          ReservationAuditLogOrmEntity,
+          UserSessionOrmEntity,
+          UserActivityLogOrmEntity,
         ],
         synchronize: configService.get('database.synchronize'),
         logging: configService.get('database.logging'),

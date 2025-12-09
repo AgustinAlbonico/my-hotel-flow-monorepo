@@ -50,20 +50,21 @@ export const authApi = {
    * Cambiar contraseña del usuario autenticado
    */
   changePassword: async (payload: ChangePasswordPayload): Promise<void> => {
-    await api.patch('/auth/password', payload);
+    await api.post('/auth/change-password', payload);
   },
 
   /**
    * Solicitar recuperación de contraseña
    */
-  recoverRequest: async (payload: RecoverPasswordRequest): Promise<void> => {
-    await api.post('/auth/recover/request', payload);
+  recoverRequest: async (payload: RecoverPasswordRequest): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/forgot-password', payload);
+    return response.data;
   },
 
   /**
    * Confirmar recuperación de contraseña con token
    */
   recoverConfirm: async (payload: RecoverPasswordConfirm): Promise<void> => {
-    await api.post('/auth/recover/confirm', payload);
+    await api.post('/auth/reset-password', payload);
   },
 };

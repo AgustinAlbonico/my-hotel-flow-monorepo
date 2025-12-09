@@ -3,7 +3,7 @@
  * Siguiendo MEJORES_PRACTICAS.md - Centralización de configuración
  */
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'MyHotelFlow';
 export const TOKEN_KEY = import.meta.env.VITE_JWT_TOKEN_KEY || 'access_token';
 export const REFRESH_TOKEN_KEY =

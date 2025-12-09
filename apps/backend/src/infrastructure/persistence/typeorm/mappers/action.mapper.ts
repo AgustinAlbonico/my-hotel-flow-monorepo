@@ -4,12 +4,14 @@
  * Patrón: Data Mapper
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Action } from '../../../../domain/entities/action.entity';
 import { ActionOrmEntity } from '../entities/action.orm-entity';
 
 @Injectable()
 export class ActionMapper {
+  private readonly logger = new Logger(ActionMapper.name);
+
   /**
    * Convertir de entidad ORM a entidad de dominio
    */
@@ -29,8 +31,9 @@ export class ActionMapper {
         ormEntity.updatedAt,
       );
     } catch (error) {
-      console.error(
-        `❌ Error mapeando acción ID ${ormEntity.id}: key="${ormEntity.key}", name="${ormEntity.name}"`,
+      this.logger.error(
+        `Error mapeando acción ID ${ormEntity.id}: key="${ormEntity.key}", name="${ormEntity.name}"`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }

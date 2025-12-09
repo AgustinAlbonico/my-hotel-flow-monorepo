@@ -1,144 +1,223 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
+import type { IClientRepository } from '../../../domain/repositories/client.repository.interface';
 import type { IHashService } from '../../../domain/services/hash-service.interface';
 import type { ITokenService } from '../../../domain/services/token.service.interface';
 import { LoginDto } from '../../dtos/auth/login.dto';
 import { LoginResponseDto } from '../../dtos/auth/login-response.dto';
 import { InvalidCredentialsException } from '../../../domain/exceptions/invalid-credentials.exception';
-import { Email } from '../../../domain/value-objects/email.vo';
+import { Email as UserEmail } from '../../../domain/value-objects/email.vo';
+import { Email as ClientEmail } from '../../../domain/value-objects/email.value-object';
 import { User } from '../../../domain/entities/user.entity';
+import { Client } from '../../../domain/entities/client.entity';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+
+export interface LoginContext {
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 /**
  * Login Use Case
  *
- * Handles user authentication with the following security features:
- * - Validates username and password
- * - Checks if user account is active
- * - Checks if account is locked due to failed attempts
- * - Records failed login attempts (locks after 5 failures for 15 minutes)
- * - Records successful login (resets failed attempts counter)
+ * Handles user and client authentication with the following security features:
+ * - Validates username/email and password
+ * - Checks if account is active
+ * - Checks if account is locked due to failed attempts (Users only)
+ * - Records failed login attempts (Users only)
  * - Generates JWT access and refresh tokens
- * - Returns user information and permissions
- *
- * Security considerations:
- * - Uses constant-time comparison for passwords via IHashService
- * - Implements account lockout mechanism (5 attempts = 15 min lockout)
- * - Always returns generic "Invalid credentials" message to prevent username enumeration
- * - Checks account status before validating password
+ * - Returns user/client information and permissions
  */
 @Injectable()
 export class LoginUseCase {
+  private readonly logger = new Logger(LoginUseCase.name);
+
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
+    @Inject('IClientRepository')
+    private readonly clientRepository: IClientRepository,
     @Inject('IHashService')
     private readonly hashService: IHashService,
     @Inject('ITokenService')
     private readonly tokenService: ITokenService,
-  ) {}
+    private readonly auditService: AuditService,
+  ) { }
 
   /**
    * Execute login
    *
    * @param dto - Login credentials (username can be username or email)
+   * @param context - Login context with IP and user agent
    * @returns Login response with tokens and user information
    * @throws InvalidCredentialsException if username doesn't exist or password is incorrect
-   * @throws UserNotActiveException if user account is not active
-   * @throws UserLockedException if account is locked due to failed attempts
    */
-  async execute(dto: LoginDto): Promise<LoginResponseDto> {
-    // 1. Find user by email or username (WITHOUT relations to avoid mapper issues)
+  async execute(
+    dto: LoginDto,
+    context?: LoginContext,
+  ): Promise<LoginResponseDto> {
+    // 1. Try to find USER first
     let user: User | null = null;
+    let client: Client | null = null;
+    let isClient = false;
 
     // Try by email first if it looks like an email
     if (dto.username.includes('@')) {
       try {
-        const emailVO = Email.create(dto.username);
-        user = await this.userRepository.findByEmail(emailVO);
+        const userEmailVO = UserEmail.create(dto.username);
+        user = await this.userRepository.findByEmail(userEmailVO);
       } catch {
-        // If email format is invalid, continue to try username
+        // If email format is invalid for User, ignore
+      }
+
+      if (!user) {
+        try {
+          const clientEmailVO = ClientEmail.create(dto.username);
+          client = await this.clientRepository.findByEmail(clientEmailVO);
+          if (client) isClient = true;
+        } catch {
+          // If email format is invalid for Client, ignore
+        }
       }
     }
 
-    // If not found by email, try by username
-    if (!user) {
+    // If not found by email and not a client yet, try by username (only for Users)
+    if (!user && !client) {
       user = await this.userRepository.findByUsername(dto.username);
     }
 
-    // 2. If user not found, throw generic error to prevent enumeration
-    if (!user) {
+    // 2. If neither found, throw generic error
+    if (!user && !client) {
       throw new InvalidCredentialsException();
     }
 
-    // 3. Check if user can login (active and not locked)
-    user.canLogin();
+    // ==========================================
+    // CLIENT LOGIN FLOW
+    // ==========================================
+    // ==========================================
+    // CLIENT LOGIN FLOW
+    // ==========================================
+    if (isClient && client) {
+      if (!client.isActive) {
+        throw new InvalidCredentialsException(); // Or UserNotActiveException
+      }
 
-    // 4. Verify password using constant-time comparison
-    const isPasswordValid = await this.hashService.verify(
-      user.passwordHash,
-      dto.password,
-    );
+      const isPasswordValid = await this.hashService.verify(
+        client.password,
+        dto.password,
+      );
 
-    // 5. If password is invalid, record failed attempt and throw exception
-    if (!isPasswordValid) {
-      user.recordFailedLoginAttempt();
-      // Usar updateLoginInfo para no borrar relaciones
+      if (!isPasswordValid) {
+        throw new InvalidCredentialsException();
+      }
+
+      // Generate tokens for Client
+      // Note: We might want to add a 'role' or 'type' claim to the token to distinguish
+      const tokens = this.tokenService.generateTokenPair(
+        client.id,
+        client.email.value, // Use email as username for clients
+        client.email.value,
+        'client',
+      );
+
+      return new LoginResponseDto({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: client.id,
+        username: `${client.firstName} ${client.lastName}`,
+        email: client.email.value,
+        groupIds: client.groups.map((g) => g.id),
+        actionKeys: [], // Clients usually don't have direct action keys like users
+      });
+    }
+
+    // ==========================================
+    // USER LOGIN FLOW
+    // ==========================================
+    if (user) {
+      // 3. Check if user can login (active and not locked)
+      user.canLogin();
+
+      // 4. Verify password using constant-time comparison
+      const isPasswordValid = await this.hashService.verify(
+        user.passwordHash,
+        dto.password,
+      );
+
+      // 5. If password is invalid, record failed attempt and throw exception
+      if (!isPasswordValid) {
+        user.recordFailedLoginAttempt();
+        await this.userRepository.updateLoginInfo(
+          user.id,
+          user.lastLoginAt,
+          user.failedLoginAttempts,
+          user.lockedUntil,
+        );
+        throw new InvalidCredentialsException();
+      }
+
+      // 6. Password is valid - record successful login
+      user.recordSuccessfulLogin();
       await this.userRepository.updateLoginInfo(
         user.id,
         user.lastLoginAt,
         user.failedLoginAttempts,
         user.lockedUntil,
       );
-      throw new InvalidCredentialsException();
+
+      // 7. Load user with relations
+      const userWithRelations = await this.userRepository.findByIdWithRelations(
+        user.id,
+        true, // includeGroups
+        true, // includeActions
+      );
+
+      const groups = userWithRelations?.groups || [];
+      const actions = userWithRelations?.actions || [];
+      const inheritedActions = userWithRelations?.getInheritedActions() || [];
+      const allActionKeys = Array.from(
+        new Set([
+          ...actions.map((a) => a.key),
+          ...inheritedActions.map((a) => a.key),
+        ]),
+      );
+
+      // 8. Generate JWT tokens
+      const tokens = this.tokenService.generateTokenPair(
+        user.id,
+        user.username,
+        user.email.value,
+        'user',
+      );
+
+      // 9. Create user session for audit
+      try {
+        await this.auditService.createUserSession({
+          userId: user.id,
+          username: user.username,
+          ipAddress: context?.ipAddress,
+          userAgent: context?.userAgent,
+          sessionToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+        });
+      } catch (error) {
+        // Log error but don't block login
+        this.logger.error('Error creating user session', error instanceof Error ? error.stack : String(error));
+      }
+
+      // 10. Return login response
+      return new LoginResponseDto({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: user.id,
+        username: user.username,
+        email: user.email.value,
+        groupIds: groups.map((g) => g.id),
+        actionKeys: allActionKeys,
+      });
     }
 
-    // 6. Password is valid - record successful login (resets failed attempts)
-    user.recordSuccessfulLogin();
-    // Usar updateLoginInfo para no borrar relaciones
-    await this.userRepository.updateLoginInfo(
-      user.id,
-      user.lastLoginAt,
-      user.failedLoginAttempts,
-      user.lockedUntil,
-    );
-
-    // 7. Load user with relations AFTER successful authentication to get permissions
-    // This is done separately to avoid validation errors during authentication
-    const userWithRelations = await this.userRepository.findByIdWithRelations(
-      user.id,
-      true, // includeGroups
-      true, // includeActions
-    );
-
-    // If relations failed to load, use empty arrays as fallback
-    const groups = userWithRelations?.groups || [];
-    const actions = userWithRelations?.actions || [];
-
-    // Calculate all effective actions (direct + inherited from groups)
-    const inheritedActions = userWithRelations?.getInheritedActions() || [];
-    const allActionKeys = Array.from(
-      new Set([
-        ...actions.map((a) => a.key),
-        ...inheritedActions.map((a) => a.key),
-      ]),
-    );
-
-    // 8. Generate JWT tokens
-    const tokens = this.tokenService.generateTokenPair(
-      user.id,
-      user.username,
-      user.email.value,
-    );
-
-    // 9. Return login response
-    return new LoginResponseDto({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      userId: user.id,
-      username: user.username,
-      email: user.email.value,
-      groupIds: groups.map((g) => g.id),
-      actionKeys: allActionKeys,
-    });
+    throw new InvalidCredentialsException();
   }
 }

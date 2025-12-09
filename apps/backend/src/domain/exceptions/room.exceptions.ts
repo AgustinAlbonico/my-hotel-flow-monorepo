@@ -5,25 +5,35 @@
  * Responsabilidad: Excepciones específicas del dominio de habitaciones
  */
 
-export class RoomAlreadyExistsException extends Error {
+import { HttpStatus } from '@nestjs/common';
+import { DomainException } from './domain.exception';
+
+export class RoomAlreadyExistsException extends DomainException {
   constructor(numeroHabitacion: string) {
-    super(`Habitación con número ${numeroHabitacion} ya existe`);
-    this.name = 'RoomAlreadyExistsException';
+    super(
+      `Habitación con número ${numeroHabitacion} ya existe`,
+      HttpStatus.CONFLICT,
+      'ROOM_ALREADY_EXISTS',
+    );
   }
 }
 
-export class RoomNotFoundException extends Error {
+export class RoomNotFoundException extends DomainException {
   constructor(id: number) {
-    super(`Habitación con ID ${id} no encontrada`);
-    this.name = 'RoomNotFoundException';
+    super(
+      `Habitación con ID ${id} no encontrada`,
+      HttpStatus.NOT_FOUND,
+      'ROOM_NOT_FOUND',
+    );
   }
 }
 
-export class RoomOccupiedException extends Error {
+export class RoomOccupiedException extends DomainException {
   constructor(numeroHabitacion: string) {
     super(
       `Habitación ${numeroHabitacion} está ocupada y no puede ser modificada`,
+      HttpStatus.CONFLICT,
+      'ROOM_OCCUPIED',
     );
-    this.name = 'RoomOccupiedException';
   }
 }

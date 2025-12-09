@@ -7,10 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Calendar, ChevronRight, Loader2, Search } from 'lucide-react';
 import { reservationsApi, type ReservationListItem } from '@/api/reservations.api';
+import { getTodayLocalDate } from '@/utils/date.utils';
 
 export const ReservationsReportPage: React.FC = () => {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocalDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [status, setStatus] = useState<string>('CONFIRMED');

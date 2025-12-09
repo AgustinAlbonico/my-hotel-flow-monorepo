@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Edit, Eye, UserX, Loader2, AlertCircle } from 'lucide-react';
-import { listClients, deleteClient } from '../../api/clients.api';
+import { Plus, Search, Edit, Eye, UserX, Loader2, AlertCircle, ChevronLeft, ChevronRight, UserCircle } from 'lucide-react';
+import { searchClients, deleteClient } from '../../api/clients.api';
+import { useDebounce } from '../../hooks/useDebounce';
+import { Breadcrumb, EmptyState, TableSkeleton } from '@/components/ui';
 
 /**
  * ClientsListPage Component
@@ -11,29 +13,30 @@ import { listClients, deleteClient } from '../../api/clients.api';
 export default function ClientsListPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Obtener clientes desde la API
+  // Obtener clientes desde la API con paginación y búsqueda
   const {
-    data: clients = [],
+    data: clientsData,
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ['clients'],
-    queryFn: listClients,
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    queryKey: ['clients', page, debouncedSearch],
+    queryFn: () => searchClients({
+      page,
+      limit: 10,
+      search: debouncedSearch || undefined
+    }),
   });
 
-  const filteredClients = clients.filter(
-    (client) =>
-      client.dni.includes(searchQuery) ||
-      client.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const clients = clientsData?.data || [];
+  const pagination = clientsData?.pagination;
 
   const selectedClient = selectedClientId
     ? clients.find((c) => c.id === selectedClientId)
@@ -59,26 +62,18 @@ export default function ClientsListPage() {
   return (
     <div className="p-6">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-600 mb-4">
-        <ol className="flex items-center space-x-2">
-          <li>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="hover:text-primary-600"
-            >
-              Dashboard
-            </button>
-          </li>
-          <li>/</li>
-          <li className="text-gray-900 font-medium">Clientes</li>
-        </ol>
-      </nav>
+      <Breadcrumb
+        items={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Clientes' },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Gestión de Clientes</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Lista de clientes registrados en el sistema
           </p>
         </div>
@@ -92,15 +87,15 @@ export default function ClientsListPage() {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
           <input
             type="text"
             placeholder="Buscar por DNI, nombre o email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             disabled={isLoading}
           />
         </div>
@@ -108,9 +103,8 @@ export default function ClientsListPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="bg-white rounded-lg shadow-md p-12 flex flex-col items-center justify-center">
-          <Loader2 className="animate-spin text-primary-600 mb-4" size={48} />
-          <p className="text-gray-600">Cargando clientes...</p>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <TableSkeleton rows={10} />
         </div>
       )}
 
@@ -136,70 +130,85 @@ export default function ClientsListPage() {
       {/* Clients Table */}
       {!isLoading && !isError && (
         <>
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 table-surface">
+                <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       DNI
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Nombre Completo
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Teléfono
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Fecha Registro
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredClients.length === 0 ? (
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                  {clients.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                        {searchQuery
-                          ? 'No se encontraron clientes con ese criterio'
-                          : 'No hay clientes registrados'}
+                      <td colSpan={7} className="p-0">
+                        {searchQuery ? (
+                          <EmptyState
+                            icon={<Search size={32} className="text-gray-400" />}
+                            title="No se encontraron clientes"
+                            description={`No hay resultados para "${searchQuery}". Intenta con otro término de búsqueda.`}
+                          />
+                        ) : (
+                          <EmptyState
+                            icon={<UserCircle size={32} className="text-gray-400" />}
+                            title="No hay clientes registrados"
+                            description="Comienza agregando tu primer cliente al sistema para gestionar reservas"
+                            action={{
+                              label: 'Crear Primer Cliente',
+                              onClick: () => navigate('/clients/create'),
+                              variant: 'primary',
+                              icon: <Plus size={18} />,
+                            }}
+                          />
+                        )}
                       </td>
                     </tr>
                   ) : (
-                    filteredClients.map((client) => (
-                      <tr key={client.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    clients.map((client) => (
+                      <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                           {client.dni}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                           {client.firstName} {client.lastName}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {client.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {client.phone || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              client.isActive
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${client.isActive
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                              }`}
                           >
                             {client.isActive ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {new Date(client.createdAt).toLocaleDateString('es-AR')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -238,18 +247,43 @@ export default function ClientsListPage() {
             </div>
           </div>
 
-          {/* Stats Footer */}
-          <div className="mt-6 bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-blue-900">
-                <span className="font-semibold">{filteredClients.length}</span> cliente
-                {filteredClients.length !== 1 ? 's' : ''} encontrado
-                {filteredClients.length !== 1 ? 's' : ''}
-              </div>
-              <div className="text-xs text-blue-700">
-                Total en sistema: {clients.length}
-              </div>
+          {/* Stats & Pagination Footer */}
+          <div className="mt-6 bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-600">
+              {pagination ? (
+                <>
+                  Mostrando <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> a <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de <span className="font-medium">{pagination.total}</span> clientes
+                </>
+              ) : (
+                <>Total: {clients.length} clientes</>
+              )}
             </div>
+
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                >
+                  <ChevronLeft size={16} />
+                  Anterior
+                </button>
+                <div className="flex items-center px-2">
+                  <span className="text-sm text-gray-600">
+                    Página {page} de {pagination.totalPages}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  disabled={page === pagination.totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                >
+                  Siguiente
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
           {/* Confirmación de baja */}
           {showDeleteConfirm && selectedClient && (

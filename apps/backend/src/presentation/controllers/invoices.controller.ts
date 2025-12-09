@@ -9,16 +9,25 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { GenerateInvoiceUseCase } from '../../application/use-cases/invoice/generate-invoice.use-case';
 import type { IInvoiceRepository } from '../../domain/repositories/invoice.repository.interface';
 import type { IPaymentRepository } from '../../domain/repositories/payment.repository.interface';
 import type { IClientRepository } from '../../domain/repositories/client.repository.interface';
+import type { IReservationRepository } from '../../domain/repositories/reservation.repository.interface';
+import { InvoiceOrmEntity } from '../../infrastructure/persistence/typeorm/entities/invoice.orm-entity';
 import { Inject } from '@nestjs/common';
 import { Actions } from '../decorators/actions.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ActionsGuard } from '../guards/actions.guard';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { createReadStream } from 'fs';
+import { PdfGeneratorService } from '../../infrastructure/pdf/pdf-generator.service';
 
 /**
  * Invoices Controller
@@ -36,6 +45,11 @@ export class InvoicesController {
     private readonly paymentRepository: IPaymentRepository,
     @Inject('IClientRepository')
     private readonly clientRepository: IClientRepository,
+    @Inject('IReservationRepository')
+    private readonly reservationRepository: IReservationRepository,
+    @InjectRepository(InvoiceOrmEntity)
+    private readonly invoiceOrmRepository: Repository<InvoiceOrmEntity>,
+    private readonly pdfGeneratorService: PdfGeneratorService,
   ) {}
 
   /**
@@ -76,28 +90,55 @@ export class InvoicesController {
   @Get(':id')
   @Actions('facturas.ver')
   async getInvoiceById(@Param('id', ParseIntPipe) id: number) {
-    const invoice = await this.invoiceRepository.findById(id);
-    if (!invoice) {
+    const invoiceOrm = await this.invoiceOrmRepository.findOne({
+      where: { id },
+      relations: ['client', 'reservation', 'reservation.room', 'reservation.room.roomType'],
+    });
+
+    if (!invoiceOrm) {
       throw new NotFoundException(`Factura con ID ${id} no encontrada`);
     }
 
+    const outstandingBalance = Number(invoiceOrm.total) - Number(invoiceOrm.amountPaid);
+    const isOverdue = invoiceOrm.status !== 'PAID' && invoiceOrm.status !== 'CANCELLED' && invoiceOrm.dueDate < new Date();
+
     return {
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      reservationId: invoice.reservationId,
-      clientId: invoice.clientId,
-      subtotal: invoice.subtotal,
-      taxRate: invoice.taxRate,
-      taxAmount: invoice.taxAmount,
-      total: invoice.total,
-      amountPaid: invoice.amountPaid,
-      outstandingBalance: invoice.getOutstandingBalance(),
-      status: invoice.status,
-      issuedAt: invoice.issuedAt,
-      dueDate: invoice.dueDate,
-      isOverdue: invoice.isOverdue(),
-      notes: invoice.notes,
-      createdAt: invoice.createdAt,
+      id: invoiceOrm.id,
+      invoiceNumber: invoiceOrm.invoiceNumber,
+      reservationId: invoiceOrm.reservationId,
+      clientId: invoiceOrm.clientId,
+      subtotal: Number(invoiceOrm.subtotal),
+      taxRate: Number(invoiceOrm.taxRate),
+      taxAmount: Number(invoiceOrm.taxAmount),
+      total: Number(invoiceOrm.total),
+      amountPaid: Number(invoiceOrm.amountPaid),
+      outstandingBalance,
+      status: invoiceOrm.status,
+      issuedAt: invoiceOrm.issuedAt,
+      dueDate: invoiceOrm.dueDate,
+      isOverdue,
+      notes: invoiceOrm.notes,
+      createdAt: invoiceOrm.createdAt,
+      client: invoiceOrm.client ? {
+        id: invoiceOrm.client.id,
+        firstName: invoiceOrm.client.firstName,
+        lastName: invoiceOrm.client.lastName,
+        email: invoiceOrm.client.email,
+        phone: invoiceOrm.client.phone,
+      } : undefined,
+      reservation: invoiceOrm.reservation ? {
+        id: invoiceOrm.reservation.id,
+        code: invoiceOrm.reservation.code,
+        checkIn: invoiceOrm.reservation.checkIn,
+        checkOut: invoiceOrm.reservation.checkOut,
+        status: invoiceOrm.reservation.status,
+        room: invoiceOrm.reservation.room ? {
+          id: invoiceOrm.reservation.room.id,
+          number: invoiceOrm.reservation.room.numeroHabitacion,
+          type: invoiceOrm.reservation.room.roomType?.name || 'N/A',
+          floor: null,
+        } : undefined,
+      } : undefined,
     };
   }
 
@@ -172,21 +213,49 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Listar todas las facturas' })
   @ApiOkResponse({ description: 'Listado de facturas con estado y saldos' })
   async getAllInvoices() {
-    const invoices = await this.invoiceRepository.findAll();
+    const invoicesOrm = await this.invoiceOrmRepository.find({
+      relations: ['client', 'reservation', 'reservation.room', 'reservation.room.roomType'],
+      order: { createdAt: 'DESC' },
+    });
 
-    return invoices.map((invoice) => ({
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      reservationId: invoice.reservationId,
-      clientId: invoice.clientId,
-      total: invoice.total,
-      amountPaid: invoice.amountPaid,
-      outstandingBalance: invoice.getOutstandingBalance(),
-      status: invoice.status,
-      issuedAt: invoice.issuedAt,
-      dueDate: invoice.dueDate,
-      isOverdue: invoice.isOverdue(),
-    }));
+    return invoicesOrm.map((invoice) => {
+      const outstandingBalance = Number(invoice.total) - Number(invoice.amountPaid);
+      const isOverdue = invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && invoice.dueDate < new Date();
+      
+      return {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        reservationId: invoice.reservationId,
+        clientId: invoice.clientId,
+        total: Number(invoice.total),
+        amountPaid: Number(invoice.amountPaid),
+        outstandingBalance,
+        status: invoice.status,
+        issuedAt: invoice.issuedAt,
+        dueDate: invoice.dueDate,
+        isOverdue,
+        client: invoice.client ? {
+          id: invoice.client.id,
+          firstName: invoice.client.firstName,
+          lastName: invoice.client.lastName,
+          email: invoice.client.email,
+          phone: invoice.client.phone,
+        } : undefined,
+        reservation: invoice.reservation ? {
+          id: invoice.reservation.id,
+          code: invoice.reservation.code,
+          checkIn: invoice.reservation.checkIn,
+          checkOut: invoice.reservation.checkOut,
+          status: invoice.reservation.status,
+          room: invoice.reservation.room ? {
+            id: invoice.reservation.room.id,
+            number: invoice.reservation.room.numeroHabitacion,
+            type: invoice.reservation.room.roomType?.name || 'N/A',
+            floor: null, // No disponible en la entidad actual
+          } : undefined,
+        } : undefined,
+      };
+    });
   }
 
   /**
@@ -196,24 +265,60 @@ export class InvoicesController {
   @Get('list/overdue')
   @Actions('facturas.listar')
   async getOverdueInvoices() {
-    const invoices = await this.invoiceRepository.findOverdue();
+    const now = new Date();
+    const invoicesOrm = await this.invoiceOrmRepository
+      .createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.client', 'client')
+      .leftJoinAndSelect('invoice.reservation', 'reservation')
+      .leftJoinAndSelect('reservation.room', 'room')
+      .leftJoinAndSelect('room.roomType', 'roomType')
+      .where('invoice.status IN (:...statuses)', {
+        statuses: ['PENDING', 'PARTIAL'],
+      })
+      .andWhere('invoice.dueDate < :now', { now })
+      .orderBy('invoice.dueDate', 'ASC')
+      .getMany();
 
-    return invoices.map((invoice) => ({
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      reservationId: invoice.reservationId,
-      clientId: invoice.clientId,
-      total: invoice.total,
-      amountPaid: invoice.amountPaid,
-      outstandingBalance: invoice.getOutstandingBalance(),
-      status: invoice.status,
-      issuedAt: invoice.issuedAt,
-      dueDate: invoice.dueDate,
-      daysOverdue: Math.ceil(
-        (new Date().getTime() - invoice.dueDate.getTime()) /
-          (1000 * 60 * 60 * 24),
-      ),
-    }));
+    return invoicesOrm.map((invoice) => {
+      const outstandingBalance = Number(invoice.total) - Number(invoice.amountPaid);
+      const daysOverdue = Math.ceil(
+        (new Date().getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      
+      return {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        reservationId: invoice.reservationId,
+        clientId: invoice.clientId,
+        total: Number(invoice.total),
+        amountPaid: Number(invoice.amountPaid),
+        outstandingBalance,
+        status: invoice.status,
+        issuedAt: invoice.issuedAt,
+        dueDate: invoice.dueDate,
+        daysOverdue,
+        client: invoice.client ? {
+          id: invoice.client.id,
+          firstName: invoice.client.firstName,
+          lastName: invoice.client.lastName,
+          email: invoice.client.email,
+          phone: invoice.client.phone,
+        } : undefined,
+        reservation: invoice.reservation ? {
+          id: invoice.reservation.id,
+          code: invoice.reservation.code,
+          checkIn: invoice.reservation.checkIn,
+          checkOut: invoice.reservation.checkOut,
+          status: invoice.reservation.status,
+          room: invoice.reservation.room ? {
+            id: invoice.reservation.room.id,
+            number: invoice.reservation.room.numeroHabitacion,
+            type: invoice.reservation.room.roomType?.name || 'N/A',
+            floor: null, // No disponible en la entidad actual
+          } : undefined,
+        } : undefined,
+      };
+    });
   }
 
   /**
@@ -295,5 +400,61 @@ export class InvoicesController {
         generatedAt: new Date().toISOString(),
       },
     };
+  }
+
+  /**
+   * Descargar comprobante de pago de una factura
+   * GET /invoices/:id/download-receipt
+   */
+  @Get(':id/download-receipt')
+  @Actions('facturas.ver')
+  async downloadReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    // Buscar la factura
+    const invoice = await this.invoiceRepository.findById(id);
+    if (!invoice) {
+      throw new NotFoundException(`Factura con ID ${id} no encontrada`);
+    }
+
+    // Buscar los pagos de esta factura
+    const payments = await this.paymentRepository.findByInvoiceId(id);
+    if (!payments || payments.length === 0) {
+      throw new NotFoundException(
+        `No se encontraron pagos para la factura con ID ${id}`,
+      );
+    }
+
+    // Obtener el último pago (el más reciente)
+    const lastPayment = payments.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    )[0];
+
+    const receiptPath = lastPayment.receiptPath;
+    if (!receiptPath) {
+      throw new NotFoundException(
+        `No hay comprobante disponible para la factura con ID ${id}`,
+      );
+    }
+
+    // Verificar que el archivo existe
+    const fileExists = await this.pdfGeneratorService.receiptExists(receiptPath);
+    if (!fileExists) {
+      throw new NotFoundException(
+        `El archivo del comprobante no existe en el servidor`,
+      );
+    }
+
+    // Configurar headers de respuesta para forzar descarga
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="comprobante-factura-${invoice.invoiceNumber}.pdf"`,
+      'Content-Length': (await import('fs')).statSync(receiptPath).size.toString(),
+    });
+
+    // Enviar archivo como stream
+    const file = createReadStream(receiptPath);
+    return new StreamableFile(file);
   }
 }

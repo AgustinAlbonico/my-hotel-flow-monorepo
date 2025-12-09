@@ -12,33 +12,33 @@ interface PaymentListItemProps {
 
 export const PaymentListItem = ({ payment }: PaymentListItemProps) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-sm transition-shadow">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <PaymentMethodBadge method={payment.method} />
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
               {new Date(payment.paidAt).toLocaleString()}
             </span>
           </div>
           {payment.reference && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Ref: <span className="font-mono">{payment.reference}</span>
             </p>
           )}
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold text-green-600">
+          <p className="text-lg font-bold text-green-600 dark:text-green-400">
             ${payment.amount.toFixed(2)}
           </p>
           {'status' in payment && (
-            <p className="text-xs text-gray-500 capitalize">{payment.status.toLowerCase()}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{payment.status.toLowerCase()}</p>
           )}
         </div>
       </div>
 
       {/* Info adicional */}
-      <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+      <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
         {'invoiceId' in payment && payment.invoiceId && (
           <span>Factura ID: #{payment.invoiceId}</span>
         )}

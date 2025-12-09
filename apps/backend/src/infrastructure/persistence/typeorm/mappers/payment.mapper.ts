@@ -18,6 +18,7 @@ export class PaymentMapper {
       status: orm.status as PaymentStatus,
       reference: orm.reference,
       notes: orm.notes,
+      receiptPath: orm.receiptPath,
       paidAt: orm.paidAt,
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
@@ -42,6 +43,7 @@ export class PaymentMapper {
     orm.status = domain.status;
     orm.reference = domain.reference;
     orm.notes = domain.notes;
+    orm.receiptPath = domain.receiptPath;
     orm.paidAt = domain.paidAt;
     orm.createdAt = domain.createdAt;
     orm.updatedAt = domain.updatedAt;

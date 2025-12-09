@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -13,7 +13,13 @@ import { TransformInterceptor } from './presentation/interceptors/transform.inte
  * Configuración según MEJORES_PRACTICAS.md - Sección 7.1
  */
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Servir archivos estáticos (logo, etc.)
+  const express = await import('express');
+  const path = await import('path');
+  app.use('/assets', express.default.static(path.join(__dirname, '..', 'public', 'assets')));
 
   // Configurar prefijo global para todas las rutas
   app.setGlobalPrefix('api/v1', {
@@ -99,9 +105,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📡 API prefix: /api/v1`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}`);
+  logger.log(`📡 API prefix: /api/v1`);
+  logger.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();

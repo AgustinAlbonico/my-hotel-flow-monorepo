@@ -28,6 +28,7 @@ export class Payment {
   private _status: PaymentStatus;
   private _reference: string | null; // Número de transacción, cheque, etc.
   private _notes: string | null;
+  private _receiptPath: string | null; // Ruta del PDF del comprobante
   private readonly _paidAt: Date;
   private readonly _createdAt: Date;
   private _updatedAt: Date;
@@ -51,6 +52,7 @@ export class Payment {
     status: PaymentStatus;
     reference: string | null;
     notes: string | null;
+    receiptPath?: string | null;
     paidAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -71,6 +73,7 @@ export class Payment {
     this._status = data.status;
     this._reference = data.reference;
     this._notes = data.notes;
+    this._receiptPath = data.receiptPath ?? null;
     this._paidAt = data.paidAt;
     this._createdAt = data.createdAt;
     this._updatedAt = data.updatedAt;
@@ -120,6 +123,7 @@ export class Payment {
     status: PaymentStatus;
     reference: string | null;
     notes: string | null;
+    receiptPath?: string | null;
     paidAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -159,6 +163,9 @@ export class Payment {
   }
   get notes(): string | null {
     return this._notes;
+  }
+  get receiptPath(): string | null {
+    return this._receiptPath;
   }
   get paidAt(): Date {
     return this._paidAt;
@@ -237,6 +244,14 @@ export class Payment {
    */
   setReference(reference: string): void {
     this._reference = reference;
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Establece la ruta del comprobante en PDF
+   */
+  setReceiptPath(path: string): void {
+    this._receiptPath = path;
     this._updatedAt = new Date();
   }
 

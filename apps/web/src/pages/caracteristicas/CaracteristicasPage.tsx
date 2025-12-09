@@ -87,8 +87,8 @@ export default function CaracteristicasPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Características</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Características</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Gestiona las características disponibles para los tipos de
             habitación
           </p>
@@ -105,22 +105,22 @@ export default function CaracteristicasPage() {
       </div>
 
       {/* Filtro de estado */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
         <label className="flex items-center gap-2 cursor-pointer w-fit">
           <input
             type="checkbox"
             checked={showOnlyActive}
             onChange={(e) => setShowOnlyActive(e.target.checked)}
-            className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2"
+            className="w-4 h-4 text-primary-600 dark:text-primary-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 focus:ring-2"
           />
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Mostrar solo características activas
           </span>
         </label>
       </div>
 
       {/* Lista de características */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {!caracteristicas || caracteristicas.length === 0 ? (
           <div className="p-8 text-center">
             <Tag className="w-12 h-12 text-gray-400 mx-auto mb-3" />
@@ -139,39 +139,39 @@ export default function CaracteristicasPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Nombre
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Descripción
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                 {caracteristicas.map((caracteristica) => (
                   <tr
                     key={caracteristica.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <Tag className="w-4 h-4 text-primary-600" />
-                        <span className="text-sm font-medium text-gray-900">
+                        <Tag className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {caracteristica.nombre}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
                         {caracteristica.descripcion || '-'}
                       </span>
                     </td>
@@ -179,8 +179,8 @@ export default function CaracteristicasPage() {
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           caracteristica.isActive
-                            ? 'bg-success-100 text-success-700'
-                            : 'bg-gray-100 text-gray-700'
+                            ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         {caracteristica.isActive ? 'Activa' : 'Inactiva'}
@@ -191,7 +191,7 @@ export default function CaracteristicasPage() {
                         <Can perform={['habitaciones.modificar']}>
                           <button
                             onClick={() => handleEdit(caracteristica)}
-                            className="text-primary-600 hover:text-primary-900 transition-colors p-1"
+                            className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300 transition-colors p-1"
                             title="Editar"
                           >
                             <Edit className="w-4 h-4" />
@@ -205,7 +205,7 @@ export default function CaracteristicasPage() {
                                 caracteristica.nombre
                               )
                             }
-                            className="text-error-600 hover:text-error-900 transition-colors p-1"
+                            className="text-error-600 dark:text-error-400 hover:text-error-900 dark:hover:text-error-300 transition-colors p-1"
                             title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />

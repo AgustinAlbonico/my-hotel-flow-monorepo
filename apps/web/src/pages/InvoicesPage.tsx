@@ -64,7 +64,7 @@ export const InvoicesPage = () => {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Todas
+            Todas  ({invoices.length})
           </button>
           <button
             onClick={() => setFilter('overdue')}
@@ -74,7 +74,7 @@ export const InvoicesPage = () => {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Vencidas ({invoices.length})
+            Vencidas
           </button>
         </div>
       </div>

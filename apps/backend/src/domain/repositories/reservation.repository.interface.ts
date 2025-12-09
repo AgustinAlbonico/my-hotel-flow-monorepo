@@ -1,4 +1,5 @@
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
+import type { EntityManager } from 'typeorm';
 
 /**
  * IReservationRepository
@@ -64,7 +65,7 @@ export interface IReservationRepository {
    */
   findWithLock(
     id: number,
-    transactionManager?: any,
+    transactionManager?: EntityManager,
   ): Promise<Reservation | null>;
 
   /**
@@ -80,6 +81,14 @@ export interface IReservationRepository {
     page?: number;
     limit?: number;
   }): Promise<{ data: ReservationListItemView[]; total: number }>;
+
+  /**
+   * Buscar reservas confirmadas que son No-Show
+   * (estado CONFIRMED, fecha de checkout pasada, sin check-in realizado)
+   * @param currentDate - Fecha actual del sistema
+   * @returns Array de reservas que son no-show
+   */
+  findConfirmedNoShows(currentDate: Date): Promise<Reservation[]>;
 }
 
 export interface ReservationClientSummary {

@@ -6,9 +6,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUsers } from '@/hooks/useUsers';
 import { Can } from '@/components/auth/Can';
-import { Plus, Edit, Trash2, Shield, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, Loader2, Search, ChevronLeft, ChevronRight, Users as UsersIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Breadcrumb, TableSkeleton, EmptyState } from '@/components/ui';
 
 export const UsersListPage: React.FC = () => {
   const [page, setPage] = useState(1);
@@ -40,10 +41,18 @@ export const UsersListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb
+        items={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Usuarios' },
+        ]}
+      />
+
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Usuarios</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Usuarios</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Gestión de usuarios del sistema ({pagination?.total || 0} total)
           </p>
         </div>
@@ -61,7 +70,7 @@ export const UsersListPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Búsqueda */}
           <div className="md:col-span-2">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Buscar
             </label>
             <div className="relative">
@@ -84,7 +93,7 @@ export const UsersListPage: React.FC = () => {
 
           {/* Filtro por estado */}
           <div>
-            <label htmlFor="isActiveFilter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="isActiveFilter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Estado
             </label>
             <select
@@ -106,50 +115,47 @@ export const UsersListPage: React.FC = () => {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 table-surface">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Usuario
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Grupos
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Estado
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Fecha Alta
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      <Loader2 className="animate-spin text-primary-600 mb-3" size={48} />
-                      <p className="text-sm text-gray-500">Cargando usuarios...</p>
-                    </div>
+                  <td colSpan={6} className="p-6">
+                    <TableSkeleton rows={limit} />
                   </td>
                 </tr>
               ) : users && users.length > 0 ? (
                 users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.username}</div>
                       {user.fullName && (
-                        <div className="text-sm text-gray-500">{user.fullName}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{user.fullName}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.email}</div>
+                      <div className="text-sm text-gray-900 dark:text-gray-100">{user.email}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
@@ -163,7 +169,7 @@ export const UsersListPage: React.FC = () => {
                             </span>
                           ))
                         ) : (
-                          <span className="text-sm text-gray-400">Sin grupos</span>
+                          <span className="text-sm text-gray-400 dark:text-gray-500">Sin grupos</span>
                         )}
                       </div>
                     </td>
@@ -177,10 +183,10 @@ export const UsersListPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-gray-900 dark:text-gray-100">
                         {format(new Date(user.createdAt), 'dd MMM yyyy', { locale: es })}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {format(new Date(user.createdAt), 'HH:mm', { locale: es })}
                       </div>
                     </td>
@@ -226,15 +232,26 @@ export const UsersListPage: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="text-gray-400">
-                      <p className="text-lg font-medium">No hay usuarios registrados</p>
-                      <p className="text-sm mt-1">
-                        {search || isActiveFilter
-                          ? 'No se encontraron usuarios con los filtros aplicados'
-                          : 'Comienza creando tu primer usuario'}
-                      </p>
-                    </div>
+                  <td colSpan={6} className="p-0">
+                    {search || isActiveFilter ? (
+                      <EmptyState
+                        icon={<Search size={32} className="text-gray-400" />}
+                        title="No se encontraron usuarios"
+                        description="No hay resultados con los filtros aplicados. Intenta ajustar los criterios de búsqueda."
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={<UsersIcon size={32} className="text-gray-400" />}
+                        title="No hay usuarios registrados"
+                        description="Comienza creando tu primer usuario para gestionar el acceso al sistema"
+                        action={{
+                          label: 'Crear Usuario',
+                          onClick: () => window.location.href = '/users/create',
+                          variant: 'primary',
+                          icon: <Plus size={18} />,
+                        }}
+                      />
+                    )}
                   </td>
                 </tr>
               )}

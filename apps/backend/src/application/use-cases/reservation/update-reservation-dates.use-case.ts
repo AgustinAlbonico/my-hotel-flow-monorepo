@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import type { IReservationRepository } from '../../../domain/repositories/reservation.repository.interface';
 import { UpdateReservationDto } from '../../dtos/reservation/update-reservation.dto';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+import { AuditActionType } from '../../../infrastructure/persistence/typeorm/entities/reservation-audit-log.orm-entity';
+import type { AuditContext } from './create-reservation.use-case';
 
 /**
  * UpdateReservationDatesUseCase
@@ -19,12 +22,14 @@ export class UpdateReservationDatesUseCase {
   constructor(
     @Inject('IReservationRepository')
     private readonly reservationRepository: IReservationRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(
     reservationId: number,
     dto: UpdateReservationDto,
     expectedVersion?: number,
+    auditContext?: AuditContext,
   ): Promise<void> {
     // 1. Buscar reserva
     const reservation =
@@ -64,6 +69,10 @@ export class UpdateReservationDatesUseCase {
       ? new Date(dto.checkOut)
       : reservation.checkOut;
 
+    // Guardar valores originales para auditoría
+    const oldCheckIn = reservation.checkIn;
+    const oldCheckOut = reservation.checkOut;
+
     // 5. Verificar disponibilidad para las nuevas fechas
     const overlapping =
       await this.reservationRepository.findOverlappingReservations(
@@ -84,6 +93,22 @@ export class UpdateReservationDatesUseCase {
 
     // 7. Persistir
     await this.reservationRepository.update(reservation);
+
+    // 8. Registrar en auditoría
+    if (auditContext) {
+      await this.auditService.logReservationChange({
+        reservationId: reservation.id,
+        actionType: AuditActionType.MODIFY_DATES,
+        fieldChanged: 'checkIn/checkOut',
+        oldValue: { checkIn: oldCheckIn, checkOut: oldCheckOut },
+        newValue: { checkIn: newCheckIn, checkOut: newCheckOut },
+        userId: auditContext.userId,
+        username: auditContext.username,
+        system: auditContext.system,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+      });
+    }
 
     // TODO: Emitir evento ReservaModificada
     // TODO: Enviar notificación al cliente

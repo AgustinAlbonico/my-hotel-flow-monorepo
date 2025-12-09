@@ -6,33 +6,33 @@
 @layer components {
   /* Botones */
   .btn-primary {
-    @apply px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-white hover:bg-gray-50 text-primary-600 font-medium border-2 border-primary-600 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 text-primary-600 dark:text-primary-400 font-medium border-2 border-primary-600 dark:border-primary-500 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-ghost {
-    @apply px-4 py-2 text-gray-700 hover:text-primary-600 hover:bg-gray-100 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-danger {
-    @apply px-6 py-3 bg-error-600 hover:bg-error-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-error-600 hover:bg-error-700 dark:bg-error-500 dark:hover:bg-error-600 text-white font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-error-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   /* Inputs */
   .input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-gray-400 disabled:bg-gray-100 disabled:cursor-not-allowed;
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors duration-200;
   }
 
   .input-error {
-    @apply border-error-500 focus:ring-error-500;
+    @apply border-error-500 dark:border-error-400 focus:ring-error-500;
   }
 
   /* Cards */
   .card {
-    @apply bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300;
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl dark:shadow-gray-900/50 transition-shadow duration-300;
   }
 
   /* Badges */
@@ -55,12 +55,67 @@
   .badge-info {
     @apply badge bg-info-100 text-info-700;
   }
+  
+  /* Dark mode styles for badges */
+  .dark .badge-success {
+    background-color: rgba(6, 78, 59, 0.3);
+    color: #86efac;
+  }
+  
+  .dark .badge-warning {
+    background-color: rgba(120, 53, 15, 0.3);
+    color: #fcd34d;
+  }
+  
+  .dark .badge-error {
+    background-color: rgba(127, 29, 29, 0.3);
+    color: #fca5a5;
+  }
+  
+  .dark .badge-info {
+    background-color: rgba(22, 78, 99, 0.3);
+    color: #7dd3fc;
+  }
+
+  /* Tablas */
+  .table-surface {
+    @apply bg-white dark:bg-gray-900;
+  }
+
+  .table-surface thead {
+    @apply bg-gray-50 dark:bg-gray-800;
+  }
+
+  .table-surface th {
+    @apply text-gray-700 dark:text-gray-200;
+  }
+
+  .table-surface tbody {
+    @apply bg-white dark:bg-gray-900;
+  }
+
+  .table-surface tr {
+    @apply border-b border-gray-100 dark:border-gray-800;
+  }
+
+  .table-surface tr:hover {
+    @apply bg-gray-50 dark:bg-gray-800;
+  }
+
+  .table-surface td {
+    @apply text-gray-900 dark:text-gray-100;
+  }
 }
 
 /* Estilos base para body */
 @layer base {
   body {
-    @apply font-sans text-gray-900 antialiased;
+    @apply font-sans text-gray-900 antialiased bg-white dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200;
+  }
+
+  /* Soporte dark mode para elementos HTML nativos */
+  html.dark {
+    color-scheme: dark;
   }
 }
 
@@ -106,4 +161,88 @@
 
 .animate-slide-in-up {
   animation: slide-in-up 0.3s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Fase 3 - UI/UX: Animaciones de micro-interacciones */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Hover effects mejorados */
+@layer utilities {
+  .hover-lift {
+    @apply transition-transform duration-200;
+  }
+  
+  .hover-lift:hover {
+    @apply -translate-y-1;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200;
+  }
+
+  .hover-scale:hover {
+    @apply scale-105;
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    @apply shadow-lg shadow-primary-500/50 dark:shadow-primary-400/30;
+  }
 }

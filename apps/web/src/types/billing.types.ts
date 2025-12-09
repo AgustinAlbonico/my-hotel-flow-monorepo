@@ -48,9 +48,20 @@ export interface Invoice {
     firstName: string;
     lastName: string;
     email: string;
+    phone?: string;
   };
   reservation?: {
     id: number;
+    code: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    room?: {
+      id: number;
+      number: string;
+      type: string;
+      floor: number | null;
+    };
   };
 }
 
@@ -88,6 +99,27 @@ export interface InvoiceListItem {
   issuedAt: string;
   dueDate: string;
   isOverdue: boolean;
+  // Relaciones populadas opcionales
+  client?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  };
+  reservation?: {
+    id: number;
+    code: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    room?: {
+      id: number;
+      number: string;
+      type: string;
+      floor: number | null;
+    };
+  };
 }
 
 export interface PaymentListItem {

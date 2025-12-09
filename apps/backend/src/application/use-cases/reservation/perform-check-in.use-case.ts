@@ -10,6 +10,9 @@ import { CheckInDto } from '../../dtos/reservation/check-in.dto';
 import { CheckInRecord } from '../../../domain/value-objects/check-in-record.value-object';
 import { RoomStatus } from '../../../domain/entities/room.entity';
 import { ReservationStatus } from '../../../domain/entities/reservation.entity';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+import { AuditActionType } from '../../../infrastructure/persistence/typeorm/entities/reservation-audit-log.orm-entity';
+import type { AuditContext } from './create-reservation.use-case';
 
 /**
  * PerformCheckInUseCase
@@ -24,12 +27,14 @@ export class PerformCheckInUseCase {
     private readonly reservationRepository: IReservationRepository,
     @Inject('IRoomRepository')
     private readonly roomRepository: IRoomRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(
     reservationId: number,
     userId: number,
     dto: CheckInDto,
+    auditContext?: AuditContext,
   ): Promise<void> {
     // 1. Buscar reserva
     const reservation =
@@ -107,7 +112,28 @@ export class PerformCheckInUseCase {
     await this.reservationRepository.update(reservation);
     await this.roomRepository.update(room);
 
+    // 9. Registrar en auditoría
+    if (auditContext) {
+      await this.auditService.logReservationChange({
+        reservationId: reservation.id,
+        actionType: AuditActionType.CHECK_IN,
+        fieldChanged: 'status',
+        oldValue: 'CONFIRMED',
+        newValue: 'IN_PROGRESS',
+        userId: auditContext.userId,
+        username: auditContext.username,
+        system: auditContext.system,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        metadata: {
+          checkInUserId: userId,
+          documentsVerified: dto.documentsVerified,
+          observations: dto.observations,
+          roomId: reservation.roomId,
+        },
+      });
+    }
+
     // TODO: Emitir evento CheckInRealizado
-    // TODO: Registrar auditoría
   }
 }

@@ -18,6 +18,9 @@ import { RoomStatus } from '../../../domain/entities/room.entity';
 import { ReservationStatus } from '../../../domain/entities/reservation.entity';
 import { Invoice } from '../../../domain/entities/invoice.entity';
 import { AccountMovement } from '../../../domain/entities/account-movement.entity';
+import { AuditService } from '../../../infrastructure/services/audit.service';
+import { AuditActionType } from '../../../infrastructure/persistence/typeorm/entities/reservation-audit-log.orm-entity';
+import type { AuditContext } from './create-reservation.use-case';
 
 /**
  * PerformCheckOutUseCase
@@ -38,12 +41,14 @@ export class PerformCheckOutUseCase {
     private readonly clientRepository: IClientRepository,
     @Inject('IAccountMovementRepository')
     private readonly accountMovementRepository: IAccountMovementRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   async execute(
     reservationId: number,
     userId: number,
     dto: CheckOutDto,
+    auditContext?: AuditContext,
   ): Promise<void> {
     // 1. Buscar reserva
     const reservation =
@@ -133,9 +138,31 @@ export class PerformCheckOutUseCase {
     await this.reservationRepository.update(reservation);
     await this.roomRepository.update(room);
 
+    // 9. Registrar en auditoría
+    if (auditContext) {
+      await this.auditService.logReservationChange({
+        reservationId: reservation.id,
+        actionType: AuditActionType.CHECK_OUT,
+        fieldChanged: 'status',
+        oldValue: 'IN_PROGRESS',
+        newValue: 'COMPLETED',
+        userId: auditContext.userId,
+        username: auditContext.username,
+        system: auditContext.system,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        metadata: {
+          checkOutUserId: userId,
+          roomCondition: dto.roomCondition,
+          observations: dto.observations,
+          roomId: reservation.roomId,
+          invoiceGenerated: existingInvoice ? false : true,
+        },
+      });
+    }
+
     // TODO: Emitir evento CheckOutRealizado
     // TODO: Emitir evento FacturaGenerada
     // TODO: Si requiere limpieza profunda, notificar a housekeeping
-    // TODO: Registrar auditoría
   }
 }

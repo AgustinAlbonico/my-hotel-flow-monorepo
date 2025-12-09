@@ -4,7 +4,7 @@
  * Ejecutar: npm run seed
  */
 
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { hash } from 'argon2';
 import { ActionOrmEntity } from '../entities/action.orm-entity';
 import { GroupOrmEntity } from '../entities/group.orm-entity';
@@ -344,6 +344,28 @@ const actionsData = [
     description: 'Exportar reportes',
   },
 
+  // Auditoría
+  {
+    key: 'auditoria.ver',
+    name: 'Ver Auditoría de Reservas',
+    description: 'Ver historial de cambios en reservas y operaciones críticas',
+  },
+  {
+    key: 'auditoria.sesiones.ver',
+    name: 'Ver Sesiones de Usuarios',
+    description: 'Ver historial de inicios y cierres de sesión',
+  },
+  {
+    key: 'auditoria.actividad.ver',
+    name: 'Ver Actividad de Usuarios',
+    description: 'Ver registro de actividad detallada de usuarios',
+  },
+  {
+    key: 'auditoria.exportar',
+    name: 'Exportar Auditoría',
+    description: 'Exportar reportes de auditoría en diversos formatos',
+  },
+
   // Configuración - Usuarios
   {
     key: 'config.usuarios.listar',
@@ -615,6 +637,13 @@ async function runSeed() {
     // 3. Crear Usuarios
     console.log('👤 Creando usuarios...');
 
+    // Limpiar usuarios clientes obsoletos si existen
+    const obsoleteUsers = ['cliente1', 'cliente2', 'cliente3'];
+    const deleteResult = await userRepo.delete({ username: In(obsoleteUsers) });
+    if (deleteResult.affected && deleteResult.affected > 0) {
+      console.log(`🧹 Eliminados ${deleteResult.affected} usuarios clientes obsoletos de la tabla de usuarios.`);
+    }
+
     const usersData = [
       {
         username: 'admin',
@@ -637,27 +666,7 @@ async function runSeed() {
         fullName: 'Carlos Rodríguez',
         group: recepcionistaGroup,
       },
-      {
-        username: 'cliente1',
-        email: 'cliente1@hotel.com',
-        password: 'Cliente123!',
-        fullName: 'Juan Pérez',
-        group: clienteGroup,
-      },
-      {
-        username: 'cliente2',
-        email: 'cliente2@hotel.com',
-        password: 'Cliente123!',
-        fullName: 'Ana Martínez',
-        group: clienteGroup,
-      },
-      {
-        username: 'cliente3',
-        email: 'cliente3@hotel.com',
-        password: 'Cliente123!',
-        fullName: 'Luis Fernández',
-        group: clienteGroup,
-      },
+
     ];
 
     for (const userData of usersData) {
@@ -726,7 +735,7 @@ async function runSeed() {
     console.log('\n🔐 Credenciales:');
     console.log('  Admin: admin / Admin123!');
     console.log('  Recepcionista: recepcionista1 / Recep123!');
-    console.log('  Cliente: cliente1 / Cliente123!');
+
     console.log('\n👥 Clientes DNI (para buscar):');
     console.log('  • 12345678 - Juan Pérez');
     console.log('  • 23456789 - María González');

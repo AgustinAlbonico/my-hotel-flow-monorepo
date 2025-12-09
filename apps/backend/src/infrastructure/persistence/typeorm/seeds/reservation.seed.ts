@@ -3,6 +3,7 @@ import { hash } from 'argon2';
 import { ClientOrmEntity } from '../entities/client.orm-entity';
 import { RoomOrmEntity } from '../entities/room.orm-entity';
 import { RoomTypeOrmEntity } from '../entities/room-type.orm-entity';
+import { GroupOrmEntity } from '../entities/group.orm-entity';
 
 export async function seedReservationData(
   dataSource: DataSource,
@@ -10,6 +11,7 @@ export async function seedReservationData(
   const clientRepository = dataSource.getRepository(ClientOrmEntity);
   const roomRepository = dataSource.getRepository(RoomOrmEntity);
   const roomTypeRepository = dataSource.getRepository(RoomTypeOrmEntity);
+  const groupRepository = dataSource.getRepository(GroupOrmEntity);
 
   console.log('🌱 Seeding reservation data...');
 
@@ -29,6 +31,15 @@ export async function seedReservationData(
     throw new Error('Room types not found. Please run room type seed first.');
   }
 
+  // Obtener grupo de cliente
+  const clientGroup = await groupRepository.findOne({
+    where: { key: 'rol.cliente' },
+  });
+
+  if (!clientGroup) {
+    throw new Error('Client group (rol.cliente) not found. Please run main seed first.');
+  }
+
   // Verificar si ya existen clientes
   const existingClients = await clientRepository.count();
   if (existingClients === 0) {
@@ -44,6 +55,7 @@ export async function seedReservationData(
         phone: '1134567890',
         password: hashedPassword,
         isActive: true,
+        groups: [clientGroup],
       }),
       clientRepository.create({
         dni: '23456789',
@@ -53,6 +65,7 @@ export async function seedReservationData(
         phone: '1145678901',
         password: hashedPassword,
         isActive: true,
+        groups: [clientGroup],
       }),
       clientRepository.create({
         dni: '34567890',
@@ -62,6 +75,7 @@ export async function seedReservationData(
         phone: '1156789012',
         password: hashedPassword,
         isActive: true,
+        groups: [clientGroup],
       }),
       clientRepository.create({
         dni: '45678901',
@@ -71,6 +85,7 @@ export async function seedReservationData(
         phone: '1167890123',
         password: hashedPassword,
         isActive: true,
+        groups: [clientGroup],
       }),
     ];
 

@@ -59,6 +59,11 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 // Response interceptor - manejo de respuestas estandarizadas, errores y refresh automático
 api.interceptors.response.use(
   (response: AxiosResponse<ApiSuccessResponse>) => {
+    // Si es una respuesta de tipo blob (archivos), no procesarla
+    if (response.config.responseType === 'blob') {
+      return response;
+    }
+
     // La API ahora devuelve siempre la estructura estándar con success, data, meta
     // Extraer solo los datos para facilitar el uso en los componentes
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {

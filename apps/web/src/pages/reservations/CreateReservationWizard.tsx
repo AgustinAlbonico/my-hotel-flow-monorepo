@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { reservationsApi, ClientFound, AvailableRoom } from '../../api/reservations.api';
+import { searchClients, ClientListItem } from '../../api/clients.api';
 import { useRoomTypes } from '../../hooks/useRoomTypes';
-import { Check, AlertCircle, Calendar, Bed, Bell, CheckCircle, User, Printer } from 'lucide-react';
+import { Check, AlertCircle, Calendar, Bed, Bell, CheckCircle, User, Printer, Search } from 'lucide-react';
 import { SettleDebtModal } from '@/components/account/SettleDebtModal';
+import { getTodayLocalDate } from '@/utils/date.utils';
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 
@@ -39,6 +41,11 @@ export default function CreateReservationWizard() {
   const [createError, setCreateError] = useState<string>('');
   const [showDebtModal, setShowDebtModal] = useState(false);
 
+  // Estados para la búsqueda de clientes
+  const [searchDni, setSearchDni] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const clientsPerPage = 10;
+
   // Obtener tipos de habitación activos usando el hook personalizado
   const { activeRoomTypes, loadingActive } = useRoomTypes();
 
@@ -64,76 +71,15 @@ export default function CreateReservationWizard() {
     return roomType?.capacidadMaxima || 2;
   };
 
-  // Step 1: Buscar cliente
-  const searchClientMutation = useMutation({
-    mutationFn: (dni: string) => reservationsApi.searchClientByDNI(dni),
-    onSuccess: async (data) => {
-      if (!data) {
-        setDniError('Cliente no encontrado. Verifique el DNI.');
-        setDniWarningType('NOT_FOUND');
-        return;
-      }
-
-      // Guardar cliente en estado
-      setFormData((prev) => ({ ...prev, client: data }));
-
-      // Resetear mensajes previos
-      setDniError('');
-      setDniWarningType('');
-
-      // Primero, si es deudor mostramos el modal de deuda
-      if (data.isDebtor) {
-        setShowDebtModal(true);
-        return;
-      }
-
-      try {
-        // Verificar si el cliente tiene reservas activas/pendientes
-        const reservationsResponse = await reservationsApi.getReservationsByClient(data.id, {
-          status: 'CONFIRMED',
-        });
-
-        const hasActiveReservations = (reservationsResponse.data?.length ?? 0) > 0;
-
-        if (hasActiveReservations) {
-          setDniError(
-            'El cliente ya tiene una reserva activa. No se puede crear otra hasta que se complete o cancele la actual.',
-          );
-          setDniWarningType('ACTIVE_RESERVATION');
-          return;
-        }
-
-        // Si no tiene deuda ni reservas activas, podemos continuar al paso 2
-        setCurrentStep(2);
-      } catch (e) {
-        // Si falla la verificación de reservas, mostramos un error genérico pero no avanzamos
-        setDniError('Ocurrió un error al verificar las reservas del cliente. Intente nuevamente.');
-        setDniWarningType('GENERIC_ERROR');
-      }
-    },
-    onError: (error: unknown) => {
-      // Con el interceptor nuevo, los 404 vienen como EnhancedApiError
-      // con code "Not Found" y mensaje "Cliente no encontrado".
-      if (error instanceof Error) {
-        // Si es error de "cliente no encontrado", activamos el flujo de crear cliente
-        if (error.message.includes('Cliente no encontrado')) {
-          setDniError('Cliente no encontrado. Verifique el DNI.');
-          setDniWarningType('NOT_FOUND');
-          return;
-        }
-        // Si el backend indica que el cliente ya tiene una reserva activa
-        if (error.message.includes('ya tiene una reserva activa')) {
-          setDniError(
-            'El cliente ya tiene una reserva activa. No se puede crear otra hasta que se complete o cancele la actual.',
-          );
-          setDniWarningType('ACTIVE_RESERVATION');
-          return;
-        }
-      }
-      // Otros errores: mostrar mensaje genérico
-      setDniError('Ocurrió un error al buscar el cliente. Intente nuevamente.');
-      setDniWarningType('GENERIC_ERROR');
-    },
+  // Query para buscar clientes con paginación
+  const { data: clientsData, isLoading: loadingClients } = useQuery({
+    queryKey: ['clients', searchDni, currentPage],
+    queryFn: () => searchClients({
+      page: currentPage,
+      limit: clientsPerPage,
+      dni: searchDni.trim() || undefined,
+    }),
+    enabled: currentStep === 1,
   });
 
   // Step 2: Buscar habitaciones
@@ -146,12 +92,12 @@ export default function CreateReservationWizard() {
         roomType: formData.roomType,
         capacity: formData.capacity,
       }),
-    enabled: 
-      currentStep === 3 && 
-      !!formData.checkInDate && 
-      !!formData.checkOutDate && 
+    enabled:
+      currentStep === 3 &&
+      !!formData.checkInDate &&
+      !!formData.checkOutDate &&
       !!formData.roomType &&
-      !!formData.capacity && 
+      !!formData.capacity &&
       formData.capacity > 0,
   });
 
@@ -168,7 +114,7 @@ export default function CreateReservationWizard() {
       }),
     onSuccess: () => {
       setCreateError('');
-      setTimeout(() => navigate('/reservations'), 2000);
+      // Removed automatic redirect - user can now choose when to navigate
     },
     onError: (error: unknown) => {
       if (error instanceof Error) {
@@ -193,16 +139,51 @@ export default function CreateReservationWizard() {
     return true;
   };
 
-  const handleStep1Submit = () => {
-    if (formData.dni.length < 7 || formData.dni.length > 8) {
-      setDniError('DNI debe tener entre 7 y 8 dígitos');
-      return;
+  // Manejar selección de cliente desde la tabla
+  const handleClientSelection = async (client: ClientListItem) => {
+    setDniError('');
+    setDniWarningType('');
+
+    try {
+      // Primero buscar el cliente completo con información de deuda
+      const fullClientData = await reservationsApi.searchClientByDNI(client.dni);
+
+      if (!fullClientData) {
+        setDniError('No se pudo obtener la información completa del cliente');
+        setDniWarningType('GENERIC_ERROR');
+        return;
+      }
+
+      // Guardar cliente en estado
+      setFormData((prev) => ({ ...prev, client: fullClientData, dni: client.dni }));
+
+      // Si es deudor, mostrar modal
+      if (fullClientData.isDebtor) {
+        setShowDebtModal(true);
+        return;
+      }
+
+      // Verificar si el cliente tiene reservas activas/pendientes
+      const reservationsResponse = await reservationsApi.getReservationsByClient(fullClientData.id, {
+        status: 'CONFIRMED',
+      });
+
+      const hasActiveReservations = (reservationsResponse.data?.length ?? 0) > 0;
+
+      if (hasActiveReservations) {
+        setDniError(
+          'El cliente ya tiene una reserva activa. No se puede crear otra hasta que se complete o cancele la actual.',
+        );
+        setDniWarningType('ACTIVE_RESERVATION');
+        return;
+      }
+
+      // Si no tiene deuda ni reservas activas, continuar al paso 2
+      setCurrentStep(2);
+    } catch (e) {
+      setDniError('Ocurrió un error al verificar el cliente. Intente nuevamente.');
+      setDniWarningType('GENERIC_ERROR');
     }
-    if (!/^\d+$/.test(formData.dni)) {
-      setDniError('DNI debe contener solo números');
-      return;
-    }
-    searchClientMutation.mutate(formData.dni);
   };
 
   const handleStep2Submit = async () => {
@@ -232,11 +213,10 @@ export default function CreateReservationWizard() {
           <div key={step.num} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                  currentStep >= step.num
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 text-gray-600'
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${currentStep >= step.num
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-200 text-gray-600'
+                  }`}
               >
                 {currentStep > step.num ? <Check size={20} /> : step.num}
               </div>
@@ -244,9 +224,8 @@ export default function CreateReservationWizard() {
             </div>
             {idx < steps.length - 1 && (
               <div
-                className={`h-1 flex-1 mx-2 ${
-                  currentStep > step.num ? 'bg-primary-600' : 'bg-gray-200'
-                }`}
+                className={`h-1 flex-1 mx-2 ${currentStep > step.num ? 'bg-primary-600' : 'bg-gray-200'
+                  }`}
               />
             )}
           </div>
@@ -256,98 +235,188 @@ export default function CreateReservationWizard() {
   };
 
   const renderStep1 = () => {
-    const isDniValid = formData.dni.length >= 7 && formData.dni.length <= 8;
-    
+    const clients = clientsData?.data || [];
+    const pagination = clientsData?.pagination;
+    const noClientsFound = !loadingClients && clients.length === 0 && searchDni.trim().length > 0;
+
     return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Buscar Cliente</h2>
-        <p className="text-gray-600">Ingrese el DNI del cliente para continuar</p>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-bold text-gray-900">Seleccionar Cliente</h2>
+          <p className="text-gray-600">Busque por DNI para encontrar al cliente o cree uno nuevo si no existe.</p>
+        </div>
 
-        <div>
-          <label htmlFor="dni" className="block text-sm font-medium text-gray-700 mb-2">
-            DNI del Cliente
-          </label>
+        {/* Buscador por DNI */}
+        <div className="relative max-w-xl">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
+          </div>
           <input
-            id="dni"
             type="text"
-            maxLength={8}
-            value={formData.dni}
+            placeholder="Buscar por DNI..."
+            value={searchDni}
             onChange={(e) => {
-              setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '') });
+              const value = e.target.value.replace(/\D/g, ''); // Solo números
+              setSearchDni(value);
+              setCurrentPage(1);
               setDniError('');
+              setDniWarningType('');
             }}
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-600 focus:border-transparent ${
-              formData.dni.length > 0 && !isDniValid 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-gray-300'
-            }`}
-            placeholder="Ej: 12345678"
+            className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm transition-all text-lg"
+            maxLength={8}
+            autoFocus
           />
-          {formData.dni.length > 0 && !isDniValid && (
-            <div className="mt-2 flex items-center text-red-600 text-sm">
-              <AlertCircle size={16} className="mr-1" />
-              El DNI debe tener entre 7 y 8 dígitos
-            </div>
-          )}
-          {dniError && isDniValid && dniWarningType === 'NOT_FOUND' && (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center text-yellow-800 mb-3">
-                <AlertCircle size={20} className="mr-2" />
-                <span className="font-medium">Cliente no encontrado</span>
-              </div>
-              <p className="text-sm text-yellow-700 mb-3">
-                No existe un cliente con el DNI {formData.dni}. ¿Desea crear un nuevo perfil?
-              </p>
-              <button
-                onClick={() => {
-                  window.open(`/clients/create?dni=${formData.dni}`, '_blank');
-                }}
-                className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 font-medium flex items-center justify-center"
-              >
-                <User size={18} className="mr-2" />
-                Crear Nuevo Cliente
-              </button>
-              <p className="text-xs text-yellow-600 mt-2 text-center">
-                Se abrirá en una nueva pestaña. Luego vuelva aquí y busque nuevamente.
-              </p>
-            </div>
-          )}
+        </div>
 
-          {dniError && isDniValid && dniWarningType === 'ACTIVE_RESERVATION' && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center text-red-800 mb-3">
-                <AlertCircle size={20} className="mr-2" />
-                <span className="font-medium">Reserva activa encontrada</span>
-              </div>
-              <p className="text-sm text-red-700 mb-1">
-                El cliente con DNI {formData.dni} ya tiene una reserva activa.
-              </p>
-              <p className="text-sm text-red-700 mb-3">
-                No se puede crear otra reserva hasta que se complete o cancele la actual.
-              </p>
+        {/* Tabla de clientes */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          {loadingClients ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4"></div>
+              <p>Buscando clientes...</p>
             </div>
-          )}
+          ) : clients.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+              {noClientsFound ? (
+                <div className="max-w-md mx-auto space-y-6">
+                  <div className="bg-yellow-50 p-4 rounded-full inline-block">
+                    <Search className="h-8 w-8 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontró el cliente</h3>
+                    <p className="text-gray-500">
+                      No hay registros con el DNI <span className="font-semibold text-gray-900">"{searchDni}"</span>.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => window.open('/clients/create')}
+                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 shadow-sm transition-colors w-full sm:w-auto"
+                  >
+                    <User className="mr-2 h-5 w-5" />
+                    Crear Nuevo Cliente
+                  </button>
+                  <p className="text-sm text-gray-400">
+                    Se abrirá en una nueva pestaña.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-gray-500">
+                  <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Comience escribiendo un DNI para buscar.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50/50">
+                    <tr>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">DNI</th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                      <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contacto</th>
+                      <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {clients.map((client) => (
+                      <tr key={client.id} className="hover:bg-gray-50/80 transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-gray-100 text-gray-800">
+                            {client.dni}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold mr-3">
+                              {client.firstName[0]}{client.lastName[0]}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{client.firstName} {client.lastName}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 flex flex-col">
+                            <span>{client.email}</span>
+                            <span className="text-xs text-gray-400">{client.phone || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleClientSelection(client)}
+                            className="text-primary-600 hover:text-primary-900 font-medium hover:bg-primary-50 px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            Seleccionar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          {dniError && isDniValid && dniWarningType === 'GENERIC_ERROR' && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center text-red-800 mb-3">
-                <AlertCircle size={20} className="mr-2" />
-                <span className="font-medium">Error al buscar cliente</span>
-              </div>
-              <p className="text-sm text-red-700">
-                {dniError}
-              </p>
-            </div>
+              {/* Pagination */}
+              {pagination && pagination.totalPages > 1 && (
+                <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Mostrando <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> a <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> de <span className="font-medium">{pagination.total}</span> resultados
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                        disabled={currentPage === pagination.totalPages}
+                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        <button
-          onClick={handleStep1Submit}
-          disabled={searchClientMutation.isPending || !isDniValid}
-          className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-        >
-          {searchClientMutation.isPending ? 'Buscando...' : 'Buscar Cliente'}
-        </button>
+        {/* Error Messages Container */}
+        {(dniError && (dniWarningType === 'ACTIVE_RESERVATION' || dniWarningType === 'GENERIC_ERROR')) && (
+          <div className={`p-4 rounded-xl border ${dniWarningType === 'ACTIVE_RESERVATION' ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
+            <div className="flex items-start">
+              <AlertCircle className={`h-5 w-5 mt-0.5 mr-3 ${dniWarningType === 'ACTIVE_RESERVATION' ? 'text-orange-500' : 'text-red-500'}`} />
+              <div>
+                <h3 className={`text-sm font-medium ${dniWarningType === 'ACTIVE_RESERVATION' ? 'text-orange-800' : 'text-red-800'}`}>
+                  {dniWarningType === 'ACTIVE_RESERVATION' ? 'No se puede seleccionar este cliente' : 'Error'}
+                </h3>
+                <div className={`mt-1 text-sm ${dniWarningType === 'ACTIVE_RESERVATION' ? 'text-orange-700' : 'text-red-700'}`}>
+                  {dniError}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Client Link (Always visible but subtle if list is populated) */}
+        {!noClientsFound && clients.length > 0 && (
+          <div className="text-center pt-2">
+            <button
+              onClick={() => window.open('/clients/create')}
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium inline-flex items-center hover:underline"
+            >
+              <User className="mr-1.5 h-4 w-4" />
+              ¿El cliente no está en la lista? Crear nuevo
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -367,7 +436,7 @@ export default function CreateReservationWizard() {
             <input
               type="date"
               value={formData.checkInDate}
-              min={new Date().toISOString().split('T')[0]}
+              min={getTodayLocalDate()}
               onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-600"
             />
@@ -380,7 +449,7 @@ export default function CreateReservationWizard() {
             <input
               type="date"
               value={formData.checkOutDate}
-              min={formData.checkInDate || new Date().toISOString().split('T')[0]}
+              min={formData.checkInDate || getTodayLocalDate()}
               onChange={(e) => setFormData({ ...formData, checkOutDate: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-600"
             />
@@ -389,86 +458,86 @@ export default function CreateReservationWizard() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Habitación</label>
-        {loadingRoomTypes ? (
-          <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-            Cargando tipos de habitación...
-          </div>
-        ) : roomTypesError ? (
-          <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700">
-            Error al cargar tipos de habitación. Por favor, intente nuevamente.
-          </div>
-        ) : !roomTypes || roomTypes.length === 0 ? (
-          <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700">
-            No hay tipos de habitación disponibles. Por favor, configure los tipos de habitación primero.
-          </div>
-        ) : (
-          <select
-            value={formData.roomType}
+          {loadingRoomTypes ? (
+            <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+              Cargando tipos de habitación...
+            </div>
+          ) : roomTypesError ? (
+            <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700">
+              Error al cargar tipos de habitación. Por favor, intente nuevamente.
+            </div>
+          ) : !roomTypes || roomTypes.length === 0 ? (
+            <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700">
+              No hay tipos de habitación disponibles. Por favor, configure los tipos de habitación primero.
+            </div>
+          ) : (
+            <select
+              value={formData.roomType}
+              onChange={(e) => {
+                const newRoomType = e.target.value;
+                const maxCapacity = getMaxCapacity(newRoomType);
+                setFormData({
+                  ...formData,
+                  roomType: newRoomType,
+                  capacity: Math.min(formData.capacity || 1, maxCapacity),
+                });
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-600"
+            >
+              {roomTypes.map((rt) => (
+                <option key={rt.id} value={rt.code}>
+                  {rt.name} (máx. {rt.capacidadMaxima} personas)
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad de Personas</label>
+          <input
+            type="number"
+            min={1}
+            max={getMaxCapacity(formData.roomType)}
+            value={formData.capacity}
             onChange={(e) => {
-              const newRoomType = e.target.value;
-              const maxCapacity = getMaxCapacity(newRoomType);
-              setFormData({
-                ...formData,
-                roomType: newRoomType,
-                capacity: Math.min(formData.capacity || 1, maxCapacity),
-              });
+              const value = parseInt(e.target.value);
+              if (!isNaN(value) && value >= 1 && value <= getMaxCapacity(formData.roomType)) {
+                setFormData({ ...formData, capacity: value });
+              }
             }}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-600"
+          />
+          {formData.roomType && (
+            <p className="text-sm text-gray-500 mt-1">
+              Máximo {getMaxCapacity(formData.roomType)} personas para el tipo seleccionado
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            onClick={() => setCurrentStep(1)}
+            className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium"
           >
-            {roomTypes.map((rt) => (
-              <option key={rt.id} value={rt.code}>
-                {rt.name} (máx. {rt.capacidadMaxima} personas)
-              </option>
-            ))}
-          </select>
-        )}
+            Volver
+          </button>
+          <button
+            onClick={handleStep2Submit}
+            disabled={!formData.checkInDate || !formData.checkOutDate || !formData.roomType || roomTypes.length === 0}
+            className="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:bg-gray-400 font-medium"
+          >
+            Continuar
+          </button>
+        </div>
       </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad de Personas</label>
-        <input
-          type="number"
-          min={1}
-          max={getMaxCapacity(formData.roomType)}
-          value={formData.capacity}
-          onChange={(e) => {
-            const value = parseInt(e.target.value);
-            if (!isNaN(value) && value >= 1 && value <= getMaxCapacity(formData.roomType)) {
-              setFormData({ ...formData, capacity: value });
-            }
-          }}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-600"
-        />
-        {formData.roomType && (
-          <p className="text-sm text-gray-500 mt-1">
-            Máximo {getMaxCapacity(formData.roomType)} personas para el tipo seleccionado
-          </p>
-        )}
-      </div>
-
-      <div className="flex gap-4">
-        <button
-          onClick={() => setCurrentStep(1)}
-          className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 font-medium"
-        >
-          Volver
-        </button>
-        <button
-          onClick={handleStep2Submit}
-          disabled={!formData.checkInDate || !formData.checkOutDate || !formData.roomType || roomTypes.length === 0}
-          className="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 disabled:bg-gray-400 font-medium"
-        >
-          Continuar
-        </button>
-      </div>
-    </div>
     );
   };
 
   const renderStep3 = () => (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-gray-900">Habitaciones Disponibles</h2>
-      
+
       {loadingRooms ? (
         <div className="text-center py-8">Buscando habitaciones...</div>
       ) : availableRooms.length === 0 ? (
@@ -482,9 +551,8 @@ export default function CreateReservationWizard() {
                 setFormData({ ...formData, selectedRoom: room });
                 setCurrentStep(4);
               }}
-              className={`border-2 rounded-lg p-4 cursor-pointer hover:border-primary-600 ${
-                formData.selectedRoom?.id === room.id ? 'border-primary-600 bg-primary-50' : 'border-gray-200'
-              }`}
+              className={`border-2 rounded-lg p-4 cursor-pointer hover:border-primary-600 ${formData.selectedRoom?.id === room.id ? 'border-primary-600 bg-primary-50' : 'border-gray-200'
+                }`}
             >
               <div className="flex justify-between items-start">
                 <div>
@@ -573,7 +641,7 @@ export default function CreateReservationWizard() {
   const renderStep5 = () => {
     if (createReservationMutation.isSuccess) {
       const reservationData = createReservationMutation.data;
-      
+
       const handlePrint = () => {
         // Crear contenido para impresión
         const printWindow = window.open('', '_blank');
@@ -776,7 +844,7 @@ export default function CreateReservationWizard() {
             <CheckCircle size={80} className="text-green-500" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900">¡Reserva Creada Exitosamente!</h2>
-          
+
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
             <p className="text-sm text-blue-600 mb-2">Código de Reserva</p>
             <p className="text-3xl font-bold text-blue-900">{reservationData.code}</p>

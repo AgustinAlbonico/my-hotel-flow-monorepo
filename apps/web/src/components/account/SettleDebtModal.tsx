@@ -47,8 +47,9 @@ export const SettleDebtModal = ({ clientId, clientName, dni, onClose, onSettled,
   const { data: invoices, isLoading: loadingInvoices, refetch: refetchInvoices } = useClientInvoices(clientId);
   const { showToast } = useToast();
 
-  // Control individual del método seleccionado por invoice (para renderizar MP sólo débito/crédito)
-  const [selectedMethods, setSelectedMethods] = useState<Record<number, PaymentMethod>>({});
+  // TODO: Control individual del método seleccionado por invoice (para renderizar MP sólo débito/crédito)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_selectedMethods, _setSelectedMethods] = useState<Record<number, PaymentMethod>>({});
   const [isBulkPaying, setIsBulkPaying] = useState(false);
 
   const formatCurrency = (amount: number) =>

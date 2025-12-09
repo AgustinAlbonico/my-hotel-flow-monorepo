@@ -199,7 +199,7 @@ export const CancelReservationPage: React.FC = () => {
                         <p className="font-medium text-gray-900 truncate">
                           {reservation.client
                             ? `${reservation.client.firstName} ${reservation.client.lastName}`
-                            : `ID ${reservation.clientId}`}
+                            : 'Sin asignar'}
                         </p>
                       </div>
                     </div>
@@ -245,7 +245,7 @@ export const CancelReservationPage: React.FC = () => {
                       <p className="font-medium text-gray-900">
                         {selectedReservation.client
                           ? `${selectedReservation.client.firstName} ${selectedReservation.client.lastName}`
-                          : `ID ${selectedReservation.clientId}`}
+                          : 'Sin asignar'}
                       </p>
                       {selectedReservation.client?.dni && (
                         <p className="text-xs text-gray-500">

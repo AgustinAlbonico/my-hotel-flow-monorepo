@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { HealthModule } from './modules/health/health.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import configuration from './config/configuration';
@@ -20,6 +18,10 @@ import { RoomPresentationModule } from './presentation/room-presentation.module'
 import { RoomTypePresentationModule } from './presentation/room-type-presentation.module';
 import { CaracteristicaPresentationModule } from './presentation/caracteristica-presentation.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { ScheduledJobsModule } from './infrastructure/scheduled-jobs/scheduled-jobs.module';
+import { PdfModule } from './infrastructure/pdf/pdf.module';
+import { DashboardPresentationModule } from './presentation/controllers/dashboard-presentation.module';
+import { AuditPresentationModule } from './presentation/audit-presentation.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { BillingModule } from './modules/billing/billing.module';
     }),
     // Infrastructure
     DatabaseModule,
+    ScheduledJobsModule, // Trabajos programados (cron jobs)
+    PdfModule, // Generación de PDFs
     // Authentication Strategies (Passport)
     AuthStrategiesModule,
     // Clean Architecture Modules
@@ -46,12 +50,12 @@ import { BillingModule } from './modules/billing/billing.module';
     RoomPresentationModule,
     RoomTypePresentationModule,
     CaracteristicaPresentationModule,
+    DashboardPresentationModule,
+    AuditPresentationModule,
     // Utility Modules
     HealthModule,
     MetricsModule,
     BillingModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

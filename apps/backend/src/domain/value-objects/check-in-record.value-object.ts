@@ -1,4 +1,14 @@
 /**
+ * Interface para serialización/deserialización de CheckInRecord
+ */
+export interface CheckInRecordJSON {
+  timestamp: string;
+  performedBy: number;
+  documentsVerified: boolean;
+  observations?: string;
+}
+
+/**
  * CheckInRecord Value Object
  * Representa los datos del check-in de una reserva
  */
@@ -37,7 +47,10 @@ export class CheckInRecord {
     });
   }
 
-  static fromJSON(json: any): CheckInRecord {
+  /**
+   * Reconstruye un CheckInRecord desde un objeto JSON
+   */
+  static fromJSON(json: CheckInRecordJSON): CheckInRecord {
     return new CheckInRecord({
       timestamp: new Date(json.timestamp),
       performedBy: json.performedBy,
@@ -46,7 +59,10 @@ export class CheckInRecord {
     });
   }
 
-  toJSON(): any {
+  /**
+   * Serializa el record a formato JSON
+   */
+  toJSON(): CheckInRecordJSON {
     return {
       timestamp: this.timestamp.toISOString(),
       performedBy: this.performedBy,

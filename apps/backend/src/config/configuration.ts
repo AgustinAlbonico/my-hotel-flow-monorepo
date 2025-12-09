@@ -27,12 +27,6 @@ export default () => ({
     timeCost: parseInt(process.env.ARGON2_TIME_COST || '3', 10),
     parallelism: parseInt(process.env.ARGON2_PARALLELISM || '4', 10),
   },
-  redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
-    password: process.env.REDIS_PASSWORD,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
-  },
   security: {
     lockoutThreshold: parseInt(process.env.LOCKOUT_THRESHOLD || '5', 10),
     lockoutDuration: parseInt(process.env.LOCKOUT_DURATION || '900000', 10), // 15 min en ms

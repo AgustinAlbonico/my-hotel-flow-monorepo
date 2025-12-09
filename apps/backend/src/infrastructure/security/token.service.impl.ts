@@ -22,12 +22,13 @@ export class JwtTokenService implements ITokenService {
     private readonly config: ConfigService,
     @InjectRepository(RevokedTokenEntity)
     private readonly revokedTokenRepo: Repository<RevokedTokenEntity>,
-  ) {}
+  ) { }
 
   generateTokenPair(
     userId: number,
     username: string,
     email: string,
+    userType: 'user' | 'client' = 'user',
   ): TokenPair {
     const accessJti = uuidv4();
     const refreshJti = uuidv4();
@@ -38,6 +39,7 @@ export class JwtTokenService implements ITokenService {
       email,
       jti: accessJti,
       type: 'access',
+      userType,
     };
 
     const refreshPayload: Omit<TokenPayload, 'iat' | 'exp'> = {
@@ -46,6 +48,7 @@ export class JwtTokenService implements ITokenService {
       email,
       jti: refreshJti,
       type: 'refresh',
+      userType,
     };
 
     const accessExpiration =

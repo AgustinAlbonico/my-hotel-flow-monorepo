@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { IClientRepository } from '../../../domain/repositories/client.repository.interface';
 import type { IHashService } from '../../../domain/services/hash.service.interface';
+import type { IGroupRepository } from '../../../domain/repositories/group.repository.interface';
 import { Client } from '../../../domain/entities/client.entity';
 import { DNI } from '../../../domain/value-objects/dni.value-object';
 import { Email } from '../../../domain/value-objects/email.value-object';
@@ -26,9 +27,11 @@ export class CreateClientUseCase {
     private readonly clientRepository: IClientRepository,
     @Inject('IHashService')
     private readonly hashService: IHashService,
+    @Inject('IGroupRepository')
+    private readonly groupRepository: IGroupRepository,
     @Inject('INotificationService')
     private readonly notificationService?: import('../../../domain/services/notification.service.interface').INotificationService,
-  ) {}
+  ) { }
 
   async execute(dto: CreateClientDto): Promise<ClientCreatedResponseDto> {
     this.logger.log(`Creando cliente con DNI: ${dto.dni}`);
@@ -89,6 +92,16 @@ export class CreateClientUseCase {
       );
     }
 
+    // 6.2 Asignar grupo de cliente por defecto
+    const clientGroup = await this.groupRepository.findByKey('rol.cliente');
+    if (clientGroup) {
+      client.addGroup(clientGroup);
+    } else {
+      this.logger.warn(
+        'Grupo rol.cliente no encontrado. El cliente se creará sin grupo.',
+      );
+    }
+
     // 7. Persistir
     const savedClient = await this.clientRepository.save(client);
     this.logger.log(`Cliente creado con ID: ${savedClient.id}`);
@@ -112,8 +125,7 @@ export class CreateClientUseCase {
         );
       } catch (err) {
         // No bloquear la creación por fallo de envío
-        // tslint:disable-next-line:no-console
-        console.warn('Error enviando email de creación de perfil:', err);
+        this.logger.warn('Error enviando email de creación de perfil', err instanceof Error ? err.stack : String(err));
       }
     }
 

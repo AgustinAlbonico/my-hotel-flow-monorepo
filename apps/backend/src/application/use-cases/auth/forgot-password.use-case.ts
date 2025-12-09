@@ -1,67 +1,99 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { IUserRepository } from '../../../domain/repositories/user.repository.interface';
+import type { IClientRepository } from '../../../domain/repositories/client.repository.interface';
+import type { INotificationService } from '../../../domain/services/notification.service.interface';
 import { ForgotPasswordDto } from '../../dtos/auth/forgot-password.dto';
-import { Email } from '../../../domain/value-objects/email.vo';
+import { Email as UserEmail } from '../../../domain/value-objects/email.vo';
+import { Email as ClientEmail } from '../../../domain/value-objects/email.value-object';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Forgot Password Use Case
  *
- * Initiates the password reset process by generating a reset token.
- * In a real application, this would send an email with the reset link.
- *
- * Security considerations:
- * - Generates a cryptographically secure random token
- * - Token expires after 1 hour
- * - Returns success even if email doesn't exist (prevents email enumeration)
- * - In production, send email with reset link instead of returning token
- *
- * TODO: Integrate with email service to send reset link
- * TODO: Return generic success message instead of token (security)
+ * Initiates the password reset process by generating a reset token and sending an email.
+ * Supports both Users (staff) and Clients (guests).
  */
 @Injectable()
 export class ForgotPasswordUseCase {
+  private readonly logger = new Logger(ForgotPasswordUseCase.name);
+
   constructor(
     @Inject('IUserRepository')
     private readonly userRepository: IUserRepository,
-  ) {}
+    @Inject('IClientRepository')
+    private readonly clientRepository: IClientRepository,
+    @Inject('INotificationService')
+    private readonly notificationService: INotificationService,
+    private readonly configService: ConfigService,
+  ) { }
 
   /**
    * Execute forgot password request
    *
    * @param dto - Email address
-   * @returns Password reset token (in production, this should send email instead)
+   * @returns Success message (never reveals if email exists)
    */
-  async execute(dto: ForgotPasswordDto): Promise<{ resetToken: string }> {
-    // 1. Normalize email using Value Object
-    const emailVO = Email.create(dto.email);
+  async execute(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    // 1. Try to find user by email (Staff)
+    // User repository uses email.vo.ts
+    const userEmailVO = UserEmail.create(dto.email);
+    let user = await this.userRepository.findByEmail(userEmailVO);
+    let isClient = false;
+    let entity: any = user;
 
-    // 2. Find user by email
-    const user = await this.userRepository.findByEmail(emailVO);
-
-    // 3. If user not found, return success anyway (prevents email enumeration)
-    // In a real app, you'd still return success but not send any email
+    // 3. If not found in users, try clients
     if (!user) {
-      // Return a fake token to prevent timing attacks
-      // In production, just return success message without token
+      // Client repository uses email.value-object.ts
+      const clientEmailVO = ClientEmail.create(dto.email);
+      const client = await this.clientRepository.findByEmail(clientEmailVO);
+      if (client) {
+        isClient = true;
+        entity = client;
+      }
+    }
+
+    // 4. If not found in either, return success anyway (prevents email enumeration)
+    if (!entity) {
       return {
-        resetToken: 'fake-token-user-not-found',
+        message: 'Si el correo existe, recibirás instrucciones para restablecer tu contraseña',
       };
     }
 
-    // 4. Generate password reset token (expires in 1 hour)
-    const resetToken = user.generatePasswordResetToken();
+    // 5. Generate password reset token (expires in 1 hour)
+    // Both User and Client entities have this method now
+    const resetToken = entity.generatePasswordResetToken();
 
-    // 5. Save user with reset token
-    await this.userRepository.save(user);
+    // 6. Save entity with reset token
+    if (isClient) {
+      await this.clientRepository.save(entity);
+    } else {
+      await this.userRepository.save(entity);
+    }
 
-    // 6. TODO: Send email with reset link
-    // const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
-    // await this.emailService.sendPasswordResetEmail(user.email.value, resetLink);
+    // 7. Build reset link
+    const frontendUrl = this.configService.get<string>('CORS_ORIGIN') || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    // 7. Return token (in production, just return success message)
-    // For now, return token for testing purposes
+    // 8. Send email with reset link
+    try {
+      const name = isClient ? entity.firstName : entity.username;
+
+      await this.notificationService.sendPasswordReset(entity.email.value, {
+        username: name,
+        reset_link: resetLink,
+        logo_url: this.configService.get<string>('ASSET_BASE_URL')
+          ? `${this.configService.get<string>('ASSET_BASE_URL')}/logo.png`
+          : 'https://via.placeholder.com/140x40/3b82f6/ffffff?text=MyHotelFlow',
+        support_email: this.configService.get<string>('SUPPORT_EMAIL') || 'soporte@myhotelflow.example',
+        year: new Date().getFullYear(),
+      });
+    } catch (error) {
+      this.logger.error('Error sending password reset email', error instanceof Error ? error.stack : String(error));
+    }
+
+    // 9. Return generic success message
     return {
-      resetToken,
+      message: 'Si el correo existe, recibirás instrucciones para restablecer tu contraseña',
     };
   }
 }

@@ -96,8 +96,8 @@ export const Pagination: React.FC<PaginationProps> = ({
         className={cn(
           'p-2 rounded-md transition-colors',
           currentPage === 1
-            ? 'text-gray-400 cursor-not-allowed'
-            : 'text-gray-700 hover:bg-gray-100'
+            ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
         )}
         aria-label="Página anterior"
       >
@@ -110,7 +110,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           return (
             <span
               key={`ellipsis-${index}`}
-              className="px-3 py-2 text-gray-500"
+              className="px-3 py-2 text-gray-500 dark:text-gray-400"
             >
               ...
             </span>
@@ -127,8 +127,8 @@ export const Pagination: React.FC<PaginationProps> = ({
             className={cn(
               'min-w-[40px] px-3 py-2 rounded-md text-sm font-medium transition-colors',
               isActive
-                ? 'bg-primary-600 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
+                ? 'bg-primary-600 dark:bg-primary-500 text-white'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
             )}
             aria-label={`Página ${pageNumber}`}
             aria-current={isActive ? 'page' : undefined}
@@ -145,8 +145,8 @@ export const Pagination: React.FC<PaginationProps> = ({
         className={cn(
           'p-2 rounded-md transition-colors',
           currentPage === totalPages
-            ? 'text-gray-400 cursor-not-allowed'
-            : 'text-gray-700 hover:bg-gray-100'
+            ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
         )}
         aria-label="Página siguiente"
       >
@@ -161,8 +161,8 @@ export const Pagination: React.FC<PaginationProps> = ({
           className={cn(
             'p-2 rounded-md transition-colors',
             currentPage === totalPages
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:bg-gray-100'
+              ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
           )}
           aria-label="Última página"
         >

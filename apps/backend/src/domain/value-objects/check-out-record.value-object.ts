@@ -9,6 +9,16 @@ export enum RoomCondition {
 }
 
 /**
+ * Interface para serialización/deserialización de CheckOutRecord
+ */
+export interface CheckOutRecordJSON {
+  timestamp: string;
+  performedBy: number;
+  roomCondition: RoomCondition;
+  observations?: string;
+}
+
+/**
  * CheckOutRecord Value Object
  * Representa los datos del check-out de una reserva
  */
@@ -51,7 +61,10 @@ export class CheckOutRecord {
     });
   }
 
-  static fromJSON(json: any): CheckOutRecord {
+  /**
+   * Reconstruye un CheckOutRecord desde un objeto JSON
+   */
+  static fromJSON(json: CheckOutRecordJSON): CheckOutRecord {
     return new CheckOutRecord({
       timestamp: new Date(json.timestamp),
       performedBy: json.performedBy,
@@ -60,7 +73,10 @@ export class CheckOutRecord {
     });
   }
 
-  toJSON(): any {
+  /**
+   * Serializa el record a formato JSON
+   */
+  toJSON(): CheckOutRecordJSON {
     return {
       timestamp: this.timestamp.toISOString(),
       performedBy: this.performedBy,

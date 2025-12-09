@@ -55,38 +55,38 @@ export const GroupsListPage: React.FC = () => {
       </div>
 
       <div className="card overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 table-surface">
+          <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Grupo
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Clave
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Acciones
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Grupos Hijos
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Operaciones
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
             {groups && groups.length > 0 ? (
               groups.map((group) => (
-                <tr key={group.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{group.name}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{group.name}</div>
                     {group.description && (
-                      <div className="text-sm text-gray-500">{group.description}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{group.description}</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <code className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-800">
+                    <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-gray-800 dark:text-gray-100">
                       {group.key}
                     </code>
                   </td>
@@ -103,13 +103,13 @@ export const GroupsListPage: React.FC = () => {
                             </span>
                           ))}
                           {group.actions.length > 3 && (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
                               +{group.actions.length - 3} más
                             </span>
                           )}
                         </>
                       ) : (
-                        <span className="text-sm text-gray-400">Sin acciones</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-500">Sin acciones</span>
                       )}
                     </div>
                   </td>
@@ -126,13 +126,13 @@ export const GroupsListPage: React.FC = () => {
                             </span>
                           ))}
                           {group.children.length > 2 && (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
                               +{group.children.length - 2} más
                             </span>
                           )}
                         </>
                       ) : (
-                        <span className="text-sm text-gray-400">Sin grupos hijos</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-500">Sin grupos hijos</span>
                       )}
                     </div>
                   </td>

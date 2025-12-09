@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
   ConflictException,
@@ -34,6 +35,8 @@ import { ClientCreatedResponseDto } from '../dtos/client/client-created-response
 import { CheckDniResponseDto } from '../dtos/client/check-dni-response.dto';
 import { ClientListItemResponseDto } from '../dtos/client/client-list-response.dto';
 import { ClientDetailResponseDto } from '../dtos/client/client-detail-response.dto';
+import { ListClientsQueryDto } from '../dtos/client/list-clients-query.dto';
+import { PaginatedClientsResponseDto, PaginationMetaDto } from '../dtos/client/paginated-clients-response.dto';
 import {
   ClientAlreadyExistsException,
   ClientEmailAlreadyExistsException,
@@ -63,31 +66,37 @@ export class ClientController {
     private readonly deleteClientUseCase: DeleteClientUseCase,
     @Inject('IClientRepository')
     private readonly clientRepository: IClientRepository,
-  ) {}
+  ) { }
 
   /**
-   * GET /api/v1/clients - Listar todos los clientes
+   * GET /api/v1/clients - Listar clientes con búsqueda y paginación
    */
   @Get()
   @Actions('clientes.listar')
-  @ApiOperation({ summary: 'Obtener lista de todos los clientes' })
+  @ApiOperation({ summary: 'Obtener lista de clientes con búsqueda y paginación' })
   @ApiResponse({
     status: 200,
-    description: 'Lista de clientes',
-    type: [ClientListItemResponseDto],
+    description: 'Lista de clientes con información de paginación',
+    type: PaginatedClientsResponseDto,
   })
   @ApiResponse({ status: 401, description: 'No autenticado' })
   @ApiResponse({ status: 403, description: 'Sin permisos suficientes' })
-  async listClients(): Promise<{
+  async listClients(@Query() query: ListClientsQueryDto): Promise<{
     success: boolean;
     data: ClientListItemResponseDto[];
+    pagination: PaginationMetaDto;
     timestamp: string;
   }> {
-    this.logger.log('GET /clients - Listando clientes');
+    this.logger.log('GET /clients - Listando clientes con filtros');
 
-    const clients = await this.listClientsUseCase.execute();
+    const result = await this.listClientsUseCase.execute({
+      page: query.page,
+      limit: query.limit,
+      dni: query.dni,
+      search: query.search,
+    });
 
-    const data: ClientListItemResponseDto[] = clients.map((client) => ({
+    const data: ClientListItemResponseDto[] = result.clients.map((client) => ({
       id: client.id,
       dni: client.dni.value,
       firstName: client.firstName,
@@ -99,9 +108,19 @@ export class ClientController {
       updatedAt: client.updatedAt.toISOString(),
     }));
 
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const totalPages = Math.ceil(result.total / limit);
+
     return {
       success: true,
       data,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages,
+      },
       timestamp: new Date().toISOString(),
     };
   }
@@ -299,6 +318,7 @@ export class ClientController {
       const result: CheckDniResponseDto = {
         exists: !!existingClient,
         message: existingClient ? 'DNI ya registrado' : 'DNI disponible',
+        clientId: existingClient?.id,
       };
 
       return {

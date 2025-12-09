@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { createRoom, updateRoom, getRoomById, type CreateRoomRequest } from '../../api/rooms.api';
 import { useRoomTypes } from '../../hooks/useRoomTypes';
 import { useState, useEffect } from 'react';
+import { Alert } from '../../components/ui/Alert';
 
 const roomSchema = z.object({
   numeroHabitacion: z.string().min(1, 'Número de habitación es requerido'),
@@ -26,6 +27,7 @@ export default function RoomFormPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const isEditMode = !!id;
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Cargar tipos de habitación activos
   const { activeRoomTypes } = useRoomTypes();
@@ -90,9 +92,15 @@ export default function RoomFormPage() {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       navigate('/rooms');
     },
+    onError: (error: any) => {
+      // El interceptor de axios ya extrae el mensaje del backend y lo pone en error.message
+      const message = error.message || error.response?.data?.error?.message || 'Ha ocurrido un error al guardar la habitación';
+      setSubmitError(message);
+    }
   });
 
   const onSubmit = (data: RoomFormData) => {
+    setSubmitError(null);
     mutation.mutate(data as CreateRoomRequest);
   };
 
@@ -111,6 +119,12 @@ export default function RoomFormPage() {
           </h1>
         </div>
       </div>
+
+      {submitError && (
+        <Alert variant="error" title="Error" onClose={() => setSubmitError(null)}>
+          {submitError}
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

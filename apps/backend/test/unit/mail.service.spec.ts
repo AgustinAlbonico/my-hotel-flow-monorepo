@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { MailService } from '../../../src/infrastructure/notifications/mail.service';
+import { MailService } from '../../src/infrastructure/notifications/mail.service';
 
 describe('MailService (unit)', () => {
   it('should call mailerService.sendMail when sendProfileCreated is called', async () => {

@@ -13,26 +13,9 @@ import {
   Loader2,
   AlertTriangle,
   Clock,
-  CheckCircle2,
 } from 'lucide-react';
 import { useActiveReservations, useCheckOut } from '@/hooks/useReservations';
-import { useToast } from '@/contexts/ToastContext';
-import { CheckOutConfirmModal } from '@/components/modals/CheckOutConfirmModal';
-import { Modal } from '@/components/ui/Modal';
-import { PaymentForm } from '@/components/ui/PaymentForm';
-import { generateInvoice } from '@/api/invoices.api';
-import { registerPayment } from '@/api/payments.api';
-import type { Invoice } from '@/types/billing.types';
-import { PaymentMethod } from '@/types/billing.types';
-import { MercadoPagoButton } from '@/components/payment/MercadoPagoButton';
-
-interface ApiErrorLike {
-  response?: {
-    data?: {
-      message?: string;
-    };
-  };
-}
+import { CheckoutWizardModal } from '@/components/modals/CheckoutWizardModal';
 
 interface ActiveReservation {
   id: number;
@@ -55,7 +38,6 @@ interface ActiveReservation {
 
 export const ActiveReservationsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const {
     data: reservations,
     isLoading,
@@ -65,12 +47,7 @@ export const ActiveReservationsPage: React.FC = () => {
 
   const [selectedReservation, setSelectedReservation] =
     useState<ActiveReservation | null>(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [roomCondition, setRoomCondition] = useState<'GOOD' | 'REGULAR' | 'NEEDS_DEEP_CLEANING'>('GOOD');
-  const [observations, setObservations] = useState('');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [generatedInvoice, setGeneratedInvoice] = useState<Invoice | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   const handleConfirmCheckOut = async ({
     roomCondition,
@@ -80,78 +57,18 @@ export const ActiveReservationsPage: React.FC = () => {
     observations?: string;
   }): Promise<void> => {
     if (!selectedReservation) return;
-    try {
-      // 1) Ejecutar check-out
-      await checkOutMutation.mutateAsync({
-        reservationId: selectedReservation.id,
-        roomCondition,
-        observations,
-      });
-
-      // 2) Generar factura
-      const invoice = await generateInvoice(selectedReservation.id);
-      setGeneratedInvoice(invoice);
-
-      showToast({
-        type: 'success',
-        title: 'Check-out exitoso',
-        message: 'Se generó la factura. Podés registrar el pago ahora.',
-      });
-
-      // 3) Cerrar confirm modal y abrir pago
-      setShowConfirmModal(false);
-      setSelectedPaymentMethod(PaymentMethod.CASH);
-      setShowPaymentModal(true);
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Error en check-out',
-        message:
-          (err as ApiErrorLike).response?.data?.message ||
-          'No se pudo completar el check-out',
-      });
-    }
+    
+    // Ejecutar check-out
+    await checkOutMutation.mutateAsync({
+      reservationId: selectedReservation.id,
+      roomCondition,
+      observations,
+    });
   };
 
-  const handleRegisterPayment = async ({
-    amount,
-    method,
-    reference,
-  }: {
-    amount: number;
-    method: PaymentMethod;
-    reference?: string;
-  }): Promise<void> => {
-    if (!generatedInvoice || !selectedReservation) return;
-    try {
-      await registerPayment({
-        invoiceId: generatedInvoice.id,
-        clientId: selectedReservation.clientId,
-        amount,
-        method,
-        reference,
-      });
-
-      showToast({
-        type: 'success',
-        title: 'Pago registrado',
-        message: 'El pago se registró correctamente.',
-      });
-
-      setShowPaymentModal(false);
-      setGeneratedInvoice(null);
-      setSelectedReservation(null);
-      setRoomCondition('GOOD');
-      setObservations('');
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Error al registrar pago',
-        message:
-          (err as ApiErrorLike).response?.data?.message ||
-          'No se pudo registrar el pago',
-      });
-    }
+  const handleCheckoutComplete = () => {
+    setSelectedReservation(null);
+    setShowCheckoutModal(false);
   };
 
   if (isLoading) {
@@ -312,70 +229,16 @@ export const ActiveReservationsPage: React.FC = () => {
 
               {selectedReservation?.id === reservation.id ? (
                 <div className="border-t pt-4 mt-4">
-                  <h4 className="font-semibold text-gray-900 mb-4">
-                    Detalles del Check-out
-                  </h4>
+                  <p className="text-sm text-gray-600 text-center">
+                    Haga clic en el botón "Confirmar Check-out" a continuación para abrir el asistente de checkout.
+                  </p>
                   
-                  {/* Condición de la habitación */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Condición de la habitación
-                    </label>
-                    <div className="grid grid-cols-3 gap-3">
-                      <button
-                        onClick={() => setRoomCondition('GOOD')}
-                        className={`p-3 border-2 rounded-lg text-center transition-colors ${
-                          roomCondition === 'GOOD'
-                            ? 'border-green-500 bg-green-50 text-green-800'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <CheckCircle2 className="mx-auto mb-1" size={20} />
-                        <p className="text-sm font-medium">Buena</p>
-                      </button>
-                      <button
-                        onClick={() => setRoomCondition('REGULAR')}
-                        className={`p-3 border-2 rounded-lg text-center transition-colors ${
-                          roomCondition === 'REGULAR'
-                            ? 'border-yellow-500 bg-yellow-50 text-yellow-800'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <AlertTriangle className="mx-auto mb-1" size={20} />
-                        <p className="text-sm font-medium">Regular</p>
-                      </button>
-                      <button
-                        onClick={() => setRoomCondition('NEEDS_DEEP_CLEANING')}
-                        className={`p-3 border-2 rounded-lg text-center transition-colors ${
-                          roomCondition === 'NEEDS_DEEP_CLEANING'
-                            ? 'border-error-500 bg-error-50 text-error-800'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <AlertTriangle className="mx-auto mb-1" size={20} />
-                        <p className="text-sm font-medium">Necesita limpieza profunda</p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Observaciones */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Observaciones (opcional)
-                    </label>
-                    <textarea
-                      value={observations}
-                      onChange={(e) => setObservations(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      rows={3}
-                      placeholder="Ingrese cualquier observación sobre el estado de la habitación..."
-                    />
-                  </div>
-
                   {/* Botones */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 mt-4">
                     <button
-                      onClick={() => setShowConfirmModal(true)}
+                      onClick={() => {
+                        setShowCheckoutModal(true);
+                      }}
                       disabled={checkOutMutation.isPending}
                       className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                     >
@@ -394,9 +257,7 @@ export const ActiveReservationsPage: React.FC = () => {
                     <button
                       onClick={() => {
                         setSelectedReservation(null);
-                        setRoomCondition('GOOD');
-                        setObservations('');
-                        setShowConfirmModal(false);
+                        setShowCheckoutModal(false);
                       }}
                       disabled={checkOutMutation.isPending}
                       className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 font-medium"
@@ -420,64 +281,38 @@ export const ActiveReservationsPage: React.FC = () => {
           ))}
         </div>
       )}
-      {/* Modal Confirmar Check-out */}
-      <CheckOutConfirmModal
-        isOpen={showConfirmModal && !!selectedReservation}
-        onClose={() => setShowConfirmModal(false)}
-        isLoading={checkOutMutation.isPending}
-        onConfirm={handleConfirmCheckOut}
+      
+      {/* Modal Wizard de Checkout */}
+      <CheckoutWizardModal
+        isOpen={showCheckoutModal && !!selectedReservation}
+        onClose={() => {
+          setShowCheckoutModal(false);
+          setSelectedReservation(null);
+        }}
+        onComplete={handleCheckoutComplete}
         reservation={selectedReservation && {
-          _id: selectedReservation.id,
-          _code: selectedReservation.code,
+          id: selectedReservation.id,
+          code: selectedReservation.code,
           client: selectedReservation.client,
           room: selectedReservation.room,
           checkIn: selectedReservation.checkIn,
           checkOut: selectedReservation.checkOut,
         }}
+        onCheckOut={handleConfirmCheckOut}
       />
-
-      {/* Modal Pago */}
-      <Modal
-        isOpen={showPaymentModal && !!generatedInvoice}
-        onClose={() => setShowPaymentModal(false)}
-        title="Registrar Pago"
-        size="md"
-      >
-        {generatedInvoice && (
-          <div className="space-y-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-sm text-gray-600">Factura</p>
-              <p className="font-semibold text-gray-900">{generatedInvoice.invoiceNumber}</p>
-              <p className="text-sm text-gray-700 mt-1">
-                Saldo pendiente: <strong>${generatedInvoice.outstandingBalance.toFixed(2)}</strong>
-              </p>
-            </div>
-            {/* Pago con tarjeta (MercadoPago) */}
-            {(selectedPaymentMethod === PaymentMethod.DEBIT_CARD || selectedPaymentMethod === PaymentMethod.CREDIT_CARD) && (
-              <div className="space-y-2 pb-4 border-b border-gray-200">
-                <p className="text-xs font-medium text-gray-500">Pago con tarjeta (redirige a pasarela segura):</p>
-                {/* Reutilizamos el mismo botón usado en detalle de factura */}
-                <MercadoPagoButton
-                  invoiceId={generatedInvoice.id}
-                  amount={generatedInvoice.outstandingBalance}
-                  disabled={generatedInvoice.outstandingBalance <= 0}
-                  method={selectedPaymentMethod}
-                />
-                <p className="text-[11px] text-gray-400">Al aprobarse el pago, el sistema actualizará automáticamente la factura.</p>
-              </div>
-            )}
-            <PaymentForm
-              invoiceId={String(generatedInvoice.id)}
-              outstandingAmount={generatedInvoice.outstandingBalance}
-              onSubmit={handleRegisterPayment}
-              onMethodChange={setSelectedPaymentMethod}
-              initialMethod={selectedPaymentMethod ?? PaymentMethod.CASH}
-            />
-          </div>
-        )}
-      </Modal>
+      
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 bg-black/80 text-white p-3 rounded text-xs font-mono">
+          <div>showCheckoutModal: {String(showCheckoutModal)}</div>
+          <div>selectedReservation: {selectedReservation?.code || 'null'}</div>
+          <div>isOpen: {String(showCheckoutModal && !!selectedReservation)}</div>
+        </div>
+      )}
     </div>
   );
 };
+
+
 
 

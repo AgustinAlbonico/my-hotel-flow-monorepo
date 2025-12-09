@@ -19,7 +19,7 @@ import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { UsersListPage } from '@/pages/users/UsersListPage';
 import { UserFormPage } from '@/pages/users/UserFormPage';
 import { UserPermissionsPage } from '@/pages/users/UserPermissionsPage';
- 
+
 // Groups
 import { GroupsListPage } from '@/pages/groups/GroupsListPage';
 import { GroupFormPage } from '@/pages/groups/GroupFormPage';
@@ -33,11 +33,7 @@ import { ActionFormPage } from '@/pages/actions/ActionFormPage';
 
 // Reservations
 import { ReservationManagementDashboard } from '@/pages/reservations/ReservationManagementDashboard';
-import CreateReservationWizard from '@/pages/reservations/CreateReservationWizard';
-import { ActiveReservationsPage } from '@/pages/reservations/ActiveReservationsPage';
-import { CheckInPage } from '@/pages/reservations/CheckInPage';
-import CancelReservationPage from '@/pages/reservations/CancelReservationPage';
-import ModifyReservationPage from '@/pages/reservations/ModifyReservationPage';
+import UnifiedReservationsPage from '@/pages/reservations/UnifiedReservationsPage';
 import ReservationsReportPage from '@/pages/reservations/ReservationsReportPage';
 import DailyOccupancyPage from '@/pages/reservations/DailyOccupancyPage';
 import ReservationsSearchPage from '@/pages/reservations/ReservationsSearchPage';
@@ -66,6 +62,9 @@ import { InvoiceDetailPage } from '@/pages/InvoiceDetailPage';
 import InvoiceReceiptPage from '@/pages/InvoiceReceiptPage';
 import { AccountStatementPage } from '@/pages/AccountStatementPage';
 
+// Audit
+import AuditReportsPage from '@/pages/AuditReportsPage';
+
 // Error Pages
 import { ForbiddenPage } from '@/pages/errors/ForbiddenPage';
 
@@ -78,8 +77,8 @@ export const AppRoutes: React.FC = () => {
       {/* Rutas públicas de autenticación */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/recover" element={<RecoverPasswordPage />} />
-      <Route path="/auth/recover/confirm" element={<ConfirmRecoverPasswordPage />} />
-      
+      <Route path="/reset-password" element={<ConfirmRecoverPasswordPage />} />
+
       {/* Rutas de error */}
       <Route path="/forbidden" element={<ForbiddenPage />} />
 
@@ -88,7 +87,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/auth/change-password" element={<ChangePasswordPage />} />
       </Route>
-        
+
       {/* Rutas de usuarios - Requiere permisos de usuarios */}
       <Route element={<ProtectedRoute requiredPermissions={['config.usuarios.listar']} />}>
         <Route path="/users" element={<UsersListPage />} />
@@ -136,26 +135,32 @@ export const AppRoutes: React.FC = () => {
       </Route>
 
       {/* Rutas de reservas - Requiere permisos de reservas */}
+      {/* Ruta principal va directo a la vista unificada */}
       <Route element={<ProtectedRoute requiredPermissions={['reservas.listar']} />}>
-        <Route path="/reservations" element={<ReservationManagementDashboard />} />
+        <Route path="/reservations" element={<UnifiedReservationsPage />} />
       </Route>
+      
+      {/* Dashboard antiguo disponible como alternativa */}
+      <Route element={<ProtectedRoute requiredPermissions={['reservas.listar']} />}>
+        <Route path="/reservations/dashboard" element={<ReservationManagementDashboard />} />
+      </Route>
+      
+      {/* Alias para compatibilidad */}
+      <Route element={<ProtectedRoute requiredPermissions={['reservas.listar']} />}>
+        <Route path="/reservations/unified" element={<UnifiedReservationsPage />} />
+      </Route>
+      
+      {/* Redirecciones de rutas antiguas a la nueva página unificada */}
+      <Route path="/reservations/create" element={<Navigate to="/reservations/unified?tab=create" replace />} />
+      <Route path="/reservations/checkin" element={<Navigate to="/reservations/unified?tab=checkin" replace />} />
+      <Route path="/reservations/checkout" element={<Navigate to="/reservations/unified?tab=checkout" replace />} />
+      <Route path="/reservations/manage" element={<Navigate to="/reservations/unified?tab=list" replace />} />
+      <Route path="/reservations/cancel" element={<Navigate to="/reservations/unified?tab=list" replace />} />
+      <Route path="/reservations/modify" element={<Navigate to="/reservations/unified?tab=list" replace />} />
+      
+      {/* Otras rutas de reservas */}
       <Route element={<ProtectedRoute requiredPermissions={['reservas.listar']} />}>
         <Route path="/reservations/search" element={<ReservationsSearchPage />} />
-      </Route>
-      <Route element={<ProtectedRoute requiredPermissions={['reservas.crear']} />}>
-        <Route path="/reservations/create" element={<CreateReservationWizard />} />
-      </Route>
-      <Route element={<ProtectedRoute requiredPermissions={['reservas.checkin']} />}>
-        <Route path="/reservations/checkin" element={<CheckInPage />} />
-      </Route>
-      <Route element={<ProtectedRoute requiredPermissions={['reservas.checkout']} />}>
-        <Route path="/reservations/checkout" element={<ActiveReservationsPage />} />
-      </Route>
-      <Route element={<ProtectedRoute requiredPermissions={['reservas.cancelar']} />}>
-        <Route path="/reservations/cancel" element={<CancelReservationPage />} />
-      </Route>
-      <Route element={<ProtectedRoute requiredPermissions={['reservas.modificar']} />}>
-        <Route path="/reservations/modify" element={<ModifyReservationPage />} />
       </Route>
       <Route element={<ProtectedRoute requiredPermissions={['reservas.listar']} />}>
         <Route path="/reservations/report" element={<ReservationsReportPage />} />
@@ -222,6 +227,11 @@ export const AppRoutes: React.FC = () => {
       {/* Estado de Cuenta - Cuenta corriente del cliente */}
       <Route element={<ProtectedRoute requiredPermissions={['clientes.ver']} />}>
         <Route path="/account-statement/:clientId" element={<AccountStatementPage />} />
+      </Route>
+
+      {/* Auditoría - Reportes y seguimiento del sistema */}
+      <Route element={<ProtectedRoute requiredPermissions={['auditoria.ver']} />}>
+        <Route path="/audit" element={<AuditReportsPage />} />
       </Route>
 
       {/* Ruta 404 */}
