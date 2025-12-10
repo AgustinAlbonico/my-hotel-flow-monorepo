@@ -4,22 +4,27 @@ export class AddOutstandingBalanceToClients1731400000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const table = await queryRunner.getTable('clients');
+    const hasColumn = table?.columns.find((col) => col.name === 'outstanding_balance');
+
     // Agregar columna outstanding_balance a la tabla clients
-    await queryRunner.addColumn(
-      'clients',
-      new TableColumn({
-        name: 'outstanding_balance',
-        type: 'decimal',
-        precision: 10,
-        scale: 2,
-        default: 0,
-        isNullable: false,
-      }),
-    );
+    if (!hasColumn) {
+      await queryRunner.addColumn(
+        'clients',
+        new TableColumn({
+          name: 'outstanding_balance',
+          type: 'decimal',
+          precision: 10,
+          scale: 2,
+          default: 0,
+          isNullable: false,
+        }),
+      );
+    }
 
     // Crear índice para búsquedas de clientes deudores
     await queryRunner.query(`
-      CREATE INDEX idx_clients_outstanding_balance
+      CREATE INDEX IF NOT EXISTS idx_clients_outstanding_balance
       ON clients(outstanding_balance)
       WHERE outstanding_balance > 0;
     `);

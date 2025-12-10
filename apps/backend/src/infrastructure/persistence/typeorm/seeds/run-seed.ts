@@ -653,6 +653,13 @@ async function runSeed() {
         group: adminGroup,
       },
       {
+        username: 'admin2',
+        email: 'admin2@hotel.com',
+        password: 'Admin123!',
+        fullName: 'Administrador 2',
+        group: adminGroup,
+      },
+      {
         username: 'recepcionista1',
         email: 'recepcionista1@hotel.com',
         password: 'Recep123!',
@@ -716,7 +723,7 @@ async function runSeed() {
       }
     }
 
-    console.log('✅ 6 usuarios creados\n');
+    console.log('✅ 7 usuarios creados\n');
 
     // ========== Seed de tipos de habitación y características ==========
     const caracteristicaSeed = new CaracteristicaAndRoomTypeSeed();
@@ -729,11 +736,12 @@ async function runSeed() {
     console.log('📋 Resumen:');
     console.log(`  • ${actions.length} acciones`);
     console.log(`  • 3 grupos`);
-    console.log(`  • 6 usuarios`);
+    console.log(`  • 7 usuarios`);
     console.log(`  • 4 clientes de prueba`);
     console.log(`  • 8 habitaciones`);
     console.log('\n🔐 Credenciales:');
     console.log('  Admin: admin / Admin123!');
+    console.log('  Admin2: admin2 / Admin123!');
     console.log('  Recepcionista: recepcionista1 / Recep123!');
 
     console.log('\n👥 Clientes DNI (para buscar):');

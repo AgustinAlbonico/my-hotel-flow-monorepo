@@ -10,7 +10,11 @@ export class CreateInvoicesAndPaymentsTables1731401000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Crear tabla invoices
+    const invoicesExists = await queryRunner.hasTable('invoices');
+    const paymentsExists = await queryRunner.hasTable('payments');
+
+    // Crear tabla invoices solo si no existe
+    if (!invoicesExists) {
     await queryRunner.createTable(
       new Table({
         name: 'invoices',
@@ -114,8 +118,10 @@ export class CreateInvoicesAndPaymentsTables1731401000000
       }),
       true,
     );
+    }
 
-    // Crear tabla payments
+    // Crear tabla payments solo si no existe
+    if (!paymentsExists) {
     await queryRunner.createTable(
       new Table({
         name: 'payments',
@@ -190,8 +196,10 @@ export class CreateInvoicesAndPaymentsTables1731401000000
       }),
       true,
     );
+    }
 
-    // Crear Foreign Keys para invoices
+    // Crear Foreign Keys para invoices (solo si se creó la tabla)
+    if (!invoicesExists) {
     await queryRunner.createForeignKey(
       'invoices',
       new TableForeignKey({
@@ -211,8 +219,10 @@ export class CreateInvoicesAndPaymentsTables1731401000000
         onDelete: 'CASCADE',
       }),
     );
+    }
 
-    // Crear Foreign Keys para payments
+    // Crear Foreign Keys para payments (solo si se creó la tabla)
+    if (!paymentsExists) {
     await queryRunner.createForeignKey(
       'payments',
       new TableForeignKey({
@@ -232,8 +242,9 @@ export class CreateInvoicesAndPaymentsTables1731401000000
         onDelete: 'CASCADE',
       }),
     );
+    }
 
-    // Crear índices
+    // Crear índices (con IF NOT EXISTS implícito en createIndex cuando ya existe)
     await queryRunner.createIndex(
       'invoices',
       new TableIndex({

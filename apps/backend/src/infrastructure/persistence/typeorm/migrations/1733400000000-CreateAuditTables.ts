@@ -2,7 +2,12 @@ import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
 
 export class CreateAuditTables1733400000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Crear tabla reservation_audit_log
+    const auditLogExists = await queryRunner.hasTable('reservation_audit_log');
+    const userSessionsExists = await queryRunner.hasTable('user_sessions');
+    const userActivityLogExists = await queryRunner.hasTable('user_activity_log');
+
+    // Crear tabla reservation_audit_log solo si no existe
+    if (!auditLogExists) {
     await queryRunner.createTable(
       new Table({
         name: 'reservation_audit_log',
@@ -135,8 +140,10 @@ export class CreateAuditTables1733400000000 implements MigrationInterface {
         columnNames: ['changedByUserId'],
       }),
     );
+    }
 
-    // Crear tabla user_sessions
+    // Crear tabla user_sessions solo si no existe
+    if (!userSessionsExists) {
     await queryRunner.createTable(
       new Table({
         name: 'user_sessions',
@@ -248,8 +255,10 @@ export class CreateAuditTables1733400000000 implements MigrationInterface {
         columnNames: ['isActive'],
       }),
     );
+    }
 
-    // Crear tabla user_activity_log
+    // Crear tabla user_activity_log solo si no existe
+    if (!userActivityLogExists) {
     await queryRunner.createTable(
       new Table({
         name: 'user_activity_log',
@@ -367,6 +376,7 @@ export class CreateAuditTables1733400000000 implements MigrationInterface {
         columnNames: ['activityAt'],
       }),
     );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

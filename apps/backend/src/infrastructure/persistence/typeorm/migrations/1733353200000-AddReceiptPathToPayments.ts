@@ -4,6 +4,10 @@ export class AddReceiptPathToPayments1733353200000 implements MigrationInterface
   name = 'AddReceiptPathToPayments1733353200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const table = await queryRunner.getTable('payments');
+    const hasColumn = table?.columns.find((col) => col.name === 'receipt_path');
+    if (hasColumn) return;
+
     await queryRunner.addColumn(
       'payments',
       new TableColumn({

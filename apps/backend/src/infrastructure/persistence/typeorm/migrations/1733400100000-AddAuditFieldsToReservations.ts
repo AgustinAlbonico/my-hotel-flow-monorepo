@@ -4,6 +4,12 @@ export class AddAuditFieldsToReservations1733400100000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const table = await queryRunner.getTable('reservations');
+    const hasCreatedByUserId = table?.columns.find((col) => col.name === 'createdByUserId');
+    
+    // Si ya existe la columna, salir
+    if (hasCreatedByUserId) return;
+
     // Agregar campos de auditoría a la tabla reservations
     await queryRunner.addColumn(
       'reservations',
@@ -94,19 +100,27 @@ export class AddAuditFieldsToReservations1733400100000
       }),
     );
 
-    // Crear foreign keys
+    // Crear foreign keys (IF NOT EXISTS usando DO block)
     await queryRunner.query(`
-      ALTER TABLE reservations
-      ADD CONSTRAINT fk_reservations_created_by_user
-      FOREIGN KEY ("createdByUserId") REFERENCES users(id)
-      ON DELETE SET NULL
+      DO $$ BEGIN
+        ALTER TABLE reservations
+        ADD CONSTRAINT fk_reservations_created_by_user
+        FOREIGN KEY ("createdByUserId") REFERENCES users(id)
+        ON DELETE SET NULL;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     await queryRunner.query(`
-      ALTER TABLE reservations
-      ADD CONSTRAINT fk_reservations_updated_by_user
-      FOREIGN KEY ("updatedByUserId") REFERENCES users(id)
-      ON DELETE SET NULL
+      DO $$ BEGIN
+        ALTER TABLE reservations
+        ADD CONSTRAINT fk_reservations_updated_by_user
+        FOREIGN KEY ("updatedByUserId") REFERENCES users(id)
+        ON DELETE SET NULL;
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // Actualizar registros existentes con valores originales

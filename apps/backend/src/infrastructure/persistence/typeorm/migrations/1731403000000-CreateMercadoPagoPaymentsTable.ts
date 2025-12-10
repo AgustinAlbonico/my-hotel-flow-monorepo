@@ -10,30 +10,41 @@ export class CreateMercadoPagoPaymentsTable1731403000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Crear enum para status
+    const tableExists = await queryRunner.hasTable('mercadopago_payments');
+    if (tableExists) return;
+
+    // Crear enum para status (IF NOT EXISTS)
     await queryRunner.query(`
-      CREATE TYPE mercadopago_payment_status_enum AS ENUM (
-        'pending',
-        'approved',
-        'authorized',
-        'in_process',
-        'in_mediation',
-        'rejected',
-        'cancelled',
-        'refunded',
-        'charged_back'
-      )
+      DO $$ BEGIN
+        CREATE TYPE mercadopago_payment_status_enum AS ENUM (
+          'pending',
+          'approved',
+          'authorized',
+          'in_process',
+          'in_mediation',
+          'rejected',
+          'cancelled',
+          'refunded',
+          'charged_back'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
-    // Crear enum para payment_type
+    // Crear enum para payment_type (IF NOT EXISTS)
     await queryRunner.query(`
-      CREATE TYPE mercadopago_payment_type_enum AS ENUM (
-        'credit_card',
-        'debit_card',
-        'ticket',
-        'atm',
-        'digital_wallet'
-      )
+      DO $$ BEGIN
+        CREATE TYPE mercadopago_payment_type_enum AS ENUM (
+          'credit_card',
+          'debit_card',
+          'ticket',
+          'atm',
+          'digital_wallet'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
     `);
 
     // Crear tabla

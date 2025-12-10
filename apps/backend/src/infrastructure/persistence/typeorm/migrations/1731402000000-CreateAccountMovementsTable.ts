@@ -7,6 +7,9 @@ export class CreateAccountMovementsTable1731402000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    const tableExists = await queryRunner.hasTable('account_movements');
+    if (tableExists) return;
+
     await queryRunner.createTable(
       new Table({
         name: 'account_movements',

@@ -9,7 +9,13 @@ export class CreateReservationTables1730394000000
   implements MigrationInterface
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Crear tabla clients
+    // Verificar si las tablas ya existen
+    const clientsExists = await queryRunner.hasTable('clients');
+    const roomsExists = await queryRunner.hasTable('rooms');
+    const reservationsExists = await queryRunner.hasTable('reservations');
+
+    // Crear tabla clients solo si no existe
+    if (!clientsExists) {
     await queryRunner.createTable(
       new Table({
         name: 'clients',
@@ -74,8 +80,10 @@ export class CreateReservationTables1730394000000
       }),
       true,
     );
+    }
 
-    // Crear tabla rooms
+    // Crear tabla rooms solo si no existe
+    if (!roomsExists) {
     await queryRunner.createTable(
       new Table({
         name: 'rooms',
@@ -144,8 +152,10 @@ export class CreateReservationTables1730394000000
       }),
       true,
     );
+    }
 
-    // Crear tabla reservations
+    // Crear tabla reservations solo si no existe
+    if (!reservationsExists) {
     await queryRunner.createTable(
       new Table({
         name: 'reservations',
@@ -231,16 +241,30 @@ export class CreateReservationTables1730394000000
       }),
     );
 
-    // Crear índices para mejorar performance
+    }
+
+    // Crear índices para mejorar performance (IF NOT EXISTS)
     await queryRunner.query(
-      'CREATE INDEX idx_reservations_dates ON reservations (checkIn, checkOut)',
+      'CREATE INDEX IF NOT EXISTS idx_reservations_dates ON reservations ("checkIn", "checkOut")',
     );
     await queryRunner.query(
-      'CREATE INDEX idx_reservations_status ON reservations (status)',
+      'CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations (status)',
     );
-    await queryRunner.query(
-      'CREATE INDEX idx_rooms_tipo_estado ON rooms (tipo, estado)',
-    );
+    // Verificar si la columna roomTypeId existe (esquema nuevo) o tipo (esquema viejo)
+    const roomsTable = await queryRunner.getTable('rooms');
+    const hasRoomTypeId = roomsTable?.columns.find((col) => col.name === 'roomTypeId');
+    if (hasRoomTypeId) {
+      await queryRunner.query(
+        'CREATE INDEX IF NOT EXISTS idx_rooms_type_active ON rooms ("roomTypeId", "isActive", estado)',
+      );
+    } else {
+      const hasTipo = roomsTable?.columns.find((col) => col.name === 'tipo');
+      if (hasTipo) {
+        await queryRunner.query(
+          'CREATE INDEX IF NOT EXISTS idx_rooms_tipo_estado ON rooms (tipo, estado)',
+        );
+      }
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
