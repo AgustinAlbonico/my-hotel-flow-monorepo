@@ -1,5 +1,6 @@
 {
   "name": "my-hotel-flow-monorepo",
+  "description": "Sistema de gestion hotelera full-stack: reservas, check-in/out, facturacion y pagos con MercadoPago. NestJS + React + PostgreSQL + Redis, monorepo Turborepo.",
   "private": true,
   "packageManager": "npm@11.6.2",
   "workspaces": [

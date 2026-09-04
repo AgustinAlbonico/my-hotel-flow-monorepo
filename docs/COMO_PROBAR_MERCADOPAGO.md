@@ -21,7 +21,7 @@ Tu proyecto ya tiene:
 Abre el archivo `.env` en la raíz del proyecto y verifica que tengas:
 
 ```bash
-MERCADOPAGO_ACCESS_TOKEN=TEST-1897664525642153-070421-e8f7960b75efc9cb4dcd5daf0e812dbc-60191441
+MERCADOPAGO_ACCESS_TOKEN=TEST-tu-access-token-de-prueba-aqui
 MERCADOPAGO_PUBLIC_KEY=TEST-0a286c6b-59b5-46e7-ab8a-9fc0ec922031
 MERCADOPAGO_BACK_URL=http://localhost:5173
 MERCADOPAGO_NOTIFICATION_URL=http://localhost:3000/api/v1/webhooks/mercadopago
